@@ -31,6 +31,7 @@ class ApiClient {
     const { method = 'GET', body, headers = {}, isFormData = false } = options;
 
     const requestHeaders: Record<string, string> = {
+      'Accept': 'application/json',
       ...headers,
     };
 
@@ -40,7 +41,6 @@ class ApiClient {
 
     if (!isFormData && body) {
       requestHeaders['Content-Type'] = 'application/json';
-      requestHeaders['Accept'] = 'application/json';
     }
 
     const config: RequestInit = {
@@ -76,6 +76,12 @@ class ApiClient {
     try {
       data = text ? JSON.parse(text) : {};
     } catch {
+      if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+        throw new ApiError(
+          `Server returned HTML instead of JSON (HTTP ${response.status}). The API endpoint may be misconfigured.`,
+          response.status
+        );
+      }
       data = { message: text };
     }
 
