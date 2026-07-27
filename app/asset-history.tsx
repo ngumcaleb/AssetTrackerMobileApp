@@ -5,28 +5,84 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFetch } from '@/hooks/useFetch';
+import type { ActivityLog, Asset, PaginatedResponse } from '@/types/api';
 
-const TIMELINE = [
-  { id: '1', type: 'location', title: 'Location Change', time: '2 HOURS AGO', desc: 'Moved from Warehouse A-12 to Manufacturing Floor (Bay 4)', user: 'Mike Chen', color: Colors.primary },
-  { id: '2', type: 'maintenance', title: 'Maintenance Log', time: 'OCT 24, 09:15 AM', desc: 'Preventative maintenance completed. Replaced lens seal and recalibrated laser frequency.', color: '#F97316' },
-  { id: '3', type: 'return', title: 'Return', time: 'OCT 22, 04:30 PM', desc: 'Returned by Sarah Smith. Asset inspected and cleared for general use.', color: Colors.secondary },
-  { id: '4', type: 'checkout', title: 'Check-Out', time: 'OCT 18, 08:00 AM', desc: 'Assigned to John Doe for site deployment.', color: Colors.tertiary },
-  { id: '5', type: 'registration', title: 'Registration', time: 'OCT 15, 11:20 AM', desc: 'Asset onboarded into ScanTrack system. Serial #9920-ABC-X.', color: Colors.outline },
-];
+const ACTIVITY_COLORS: Record<string, string> = {
+  checkout: Colors.tertiary,
+  check_out: Colors.tertiary,
+  checkin: Colors.secondary,
+  check_in: Colors.secondary,
+  return: Colors.secondary,
+  location: Colors.primary,
+  asset_created: Colors.outline,
+  registration: Colors.outline,
+  maintenance: '#F97316',
+};
+
+const ACTIVITY_TITLES: Record<string, string> = {
+  checkout: 'Check-Out',
+  check_out: 'Check-Out',
+  checkin: 'Check-In',
+  check_in: 'Check-In',
+  return: 'Return',
+  location: 'Location Change',
+  asset_created: 'Registration',
+  registration: 'Registration',
+  maintenance: 'Maintenance Log',
+};
+
+function formatRelativeTime(dateStr: string): string {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 60) return `${diffMin} MIN AGO`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr} HOURS AGO`;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase() + ', ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+function formatAssetDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 export default function AssetHistoryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { id } = useLocalSearchParams<{ id: string }>();
+
+  const { data: asset, loading: assetLoading, error: assetError } = useFetch<Asset>({
+    endpoint: `/api/assets/${id}`,
+    enabled: !!id,
+  });
+
+  const { data: activitiesData, loading: activitiesLoading, error: activitiesError } = useFetch<PaginatedResponse<ActivityLog>>({
+    endpoint: '/api/activity',
+    params: { asset_id: id },
+    enabled: !!id,
+  });
+
+  const activities = activitiesData?.data ?? [];
+
+  const statusColor = asset?.status === 'active' ? '#1E8E3E' : asset?.status === 'checked_out' ? '#F9A825' : Colors.onSurfaceVariant;
+  const statusBg = asset?.status === 'active' ? '#E6F4EA' : asset?.status === 'checked_out' ? '#FFF3E0' : Colors.surfaceContainerHigh;
+  const statusLabel = asset?.status === 'active' ? 'Active' : asset?.status === 'checked_out' ? 'Checked Out' : 'Archived';
+
+  const loading = assetLoading || activitiesLoading;
+  const error = assetError || activitiesError;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backArrow}>â†</Text>
+          <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
         <Text style={styles.topTitle}>ScanTrack</Text>
         <TouchableOpacity style={styles.iconBtn}>
@@ -34,57 +90,84 @@ export default function AssetHistoryScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.assetOverview}>
-          <View style={styles.overviewIcon}>
-            <Text style={styles.overviewIconText}>ðŸ­</Text>
-          </View>
-          <View style={styles.overviewInfo}>
-            <Text style={styles.overviewId}>Asset ID: #STR-9920</Text>
-            <Text style={styles.overviewName}>High-Precision Laser Welder</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>Active</Text>
+      {loading && (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      )}
+
+      {error && !loading && (
+        <View style={styles.centered}>
+          <Text style={styles.emptyTitle}>Something went wrong</Text>
+          <Text style={styles.emptyDesc}>{error}</Text>
+        </View>
+      )}
+
+      {!loading && !error && (
+        <ScrollView contentContainerStyle={styles.content}>
+          <View style={styles.assetOverview}>
+            <View style={styles.overviewIcon}>
+              <Text style={styles.overviewIconText}>🏭</Text>
+            </View>
+            <View style={styles.overviewInfo}>
+              <Text style={styles.overviewId}>Asset ID: #{asset?.asset_tag ?? id}</Text>
+              <Text style={styles.overviewName}>{asset?.name ?? 'Unknown Asset'}</Text>
+              <View style={[styles.badge, { backgroundColor: statusBg }]}>
+                <Text style={[styles.badgeText, { color: statusColor }]}>{statusLabel}</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Asset Lifecycle</Text>
-          <TouchableOpacity style={styles.filterBtn}>
-            <Text style={styles.filterText}>Filter</Text>
-          </TouchableOpacity>
-        </View>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Asset Lifecycle</Text>
+            <TouchableOpacity style={styles.filterBtn}>
+              <Text style={styles.filterText}>Filter</Text>
+            </TouchableOpacity>
+          </View>
 
-        <View style={styles.timeline}>
-          {TIMELINE.map((item, index) => (
-            <View key={item.id} style={styles.timelineItem}>
-              <View style={styles.timelineLeft}>
-                <View style={[styles.timelineDot, { backgroundColor: item.color }]}>
-                  <View style={styles.timelineDotInner} />
-                </View>
-                {index < TIMELINE.length - 1 && <View style={styles.timelineLine} />}
-              </View>
-              <View style={styles.timelineContent}>
-                <View style={styles.timelineHeader}>
-                  <Text style={styles.timelineTitle}>{item.title}</Text>
-                  <Text style={styles.timelineTime}>{item.time}</Text>
-                </View>
-                <View style={styles.timelineCard}>
-                  <Text style={styles.timelineDesc}>{item.desc}</Text>
-                  {item.user && (
-                    <View style={styles.userRow}>
-                      <View style={styles.userAvatar}>
-                        <Text style={styles.userAvatarText}>{item.user[0]}</Text>
-                      </View>
-                      <Text style={styles.userName}>Updated by {item.user}</Text>
+          <View style={styles.timeline}>
+            {activities.map((item, index) => {
+              const color = ACTIVITY_COLORS[item.type] ?? Colors.primary;
+              const title = ACTIVITY_TITLES[item.type] ?? item.type;
+
+              return (
+                <View key={item.id} style={styles.timelineItem}>
+                  <View style={styles.timelineLeft}>
+                    <View style={[styles.timelineDot, { backgroundColor: color }]}>
+                      <View style={styles.timelineDotInner} />
                     </View>
-                  )}
+                    {index < activities.length - 1 && <View style={styles.timelineLine} />}
+                  </View>
+                  <View style={styles.timelineContent}>
+                    <View style={styles.timelineHeader}>
+                      <Text style={styles.timelineTitle}>{title}</Text>
+                      <Text style={styles.timelineTime}>{formatRelativeTime(item.created_at)}</Text>
+                    </View>
+                    <View style={styles.timelineCard}>
+                      <Text style={styles.timelineDesc}>{item.description}</Text>
+                      {item.user && (
+                        <View style={styles.userRow}>
+                          <View style={styles.userAvatar}>
+                            <Text style={styles.userAvatarText}>{item.user.name?.[0] ?? 'U'}</Text>
+                          </View>
+                          <Text style={styles.userName}>Updated by {item.user.name}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
                 </View>
+              );
+            })}
+
+            {activities.length === 0 && (
+              <View style={styles.centered}>
+                <Text style={styles.emptyTitle}>No activity yet</Text>
+                <Text style={styles.emptyDesc}>Activity for this asset will appear here.</Text>
               </View>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
+            )}
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -111,8 +194,8 @@ const styles = StyleSheet.create({
   overviewInfo: { flex: 1 },
   overviewId: { fontSize: 12, fontWeight: '600', color: Colors.primary, letterSpacing: 0.05, textTransform: 'uppercase' },
   overviewName: { fontSize: 20, fontWeight: '600', color: Colors.onSurface, marginTop: 4 },
-  badge: { backgroundColor: '#E6F4EA', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20, alignSelf: 'flex-start', marginTop: 8 },
-  badgeText: { fontSize: 12, fontWeight: '600', color: '#1E8E3E' },
+  badge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20, alignSelf: 'flex-start', marginTop: 8 },
+  badgeText: { fontSize: 12, fontWeight: '600' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   sectionTitle: { fontSize: 18, fontWeight: '600', color: Colors.onSurface },
   filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -136,4 +219,7 @@ const styles = StyleSheet.create({
   userAvatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: Colors.surfaceContainerHigh, alignItems: 'center', justifyContent: 'center' },
   userAvatarText: { fontSize: 10, fontWeight: '600', color: Colors.onSurfaceVariant },
   userName: { fontSize: 12, color: Colors.onSurface },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  emptyTitle: { fontSize: 18, fontWeight: '600', color: Colors.onSurface, marginBottom: 4 },
+  emptyDesc: { fontSize: 14, color: Colors.outline },
 });

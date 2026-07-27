@@ -89,7 +89,7 @@ export default function SplashScreen() {
         } else {
           router.replace('/login');
         }
-      }, 4000);
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, [isLoading, isAuthenticated]);

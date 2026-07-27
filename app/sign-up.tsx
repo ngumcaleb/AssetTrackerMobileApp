@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,11 @@ export default function SignUpScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (error) setLocalError(error);
+  }, [error]);
 
   const getPasswordStrength = (pw: string): { level: number; color: string; label: string } => {
     if (pw.length === 0) return { level: 0, color: 'transparent', label: '' };
@@ -63,6 +68,7 @@ export default function SignUpScreen() {
     }
 
     setIsLoading(true);
+    setLocalError(null);
     clearError();
     try {
       await register({
@@ -75,7 +81,8 @@ export default function SignUpScreen() {
       });
       router.replace('/(tabs)');
     } catch (e: any) {
-      Alert.alert('Registration Failed', e.message || 'Could not create account. Please try again.');
+      const msg = e?.message || 'Could not create account. Please try again.';
+      setLocalError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -247,6 +254,17 @@ export default function SignUpScreen() {
                 <Text style={styles.primaryButtonText}>Create Account</Text>
               )}
             </TouchableOpacity>
+
+            {/* Error Banner */}
+            {localError ? (
+              <View style={styles.errorBanner}>
+                <Ionicons name="alert-circle" size={18} color="#ef4444" />
+                <Text style={styles.errorText}>{localError}</Text>
+                <TouchableOpacity onPress={() => setLocalError(null)}>
+                  <Ionicons name="close" size={16} color="#ef4444" />
+                </TouchableOpacity>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.bottomSection}>
@@ -439,5 +457,23 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: '700',
     fontSize: 14,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 4,
+    gap: 8,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#991b1b',
   },
 });

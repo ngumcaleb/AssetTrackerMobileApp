@@ -8,78 +8,16 @@ import {
   StatusBar,
   ScrollView,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFetch, useMutation } from '@/hooks/useFetch';
+import type { Asset as ApiAsset, PaginatedResponse, DashboardSummary } from '@/types/api';
+import { useAuth } from '@/context/AuthContext';
 
-interface Asset {
-  id: string;
-  name: string;
-  serialNumber: string;
-  icon: string;
-  archiveDate: string;
-  reason: 'Irreparable Damage' | 'Decommissioned' | 'Lost' | 'Replaced';
-}
-
-const mockAssets: Asset[] = [
-  {
-    id: '1',
-    name: 'Dell OptiPlex 7090',
-    serialNumber: 'SN-DELL-2024-0847',
-    icon: 'ðŸ’»',
-    archiveDate: 'Jan 15, 2025',
-    reason: 'Irreparable Damage',
-  },
-  {
-    id: '2',
-    name: 'HP LaserJet Pro M404',
-    serialNumber: 'SN-HP-2023-1293',
-    icon: 'ðŸ–¨ï¸',
-    archiveDate: 'Mar 02, 2025',
-    reason: 'Decommissioned',
-  },
-  {
-    id: '3',
-    name: 'Cisco Catalyst 2960',
-    serialNumber: 'SN-CISCO-2022-0561',
-    icon: 'ðŸŒ',
-    archiveDate: 'Nov 18, 2024',
-    reason: 'Replaced',
-  },
-  {
-    id: '4',
-    name: 'APC Smart-UPS 1500',
-    serialNumber: 'SN-APC-2021-0038',
-    icon: 'ðŸ”‹',
-    archiveDate: 'Feb 28, 2025',
-    reason: 'Irreparable Damage',
-  },
-  {
-    id: '5',
-    name: 'Logitech Rally Camera',
-    serialNumber: 'SN-LOGI-2023-0774',
-    icon: 'ðŸ“·',
-    archiveDate: 'Dec 05, 2024',
-    reason: 'Lost',
-  },
-  {
-    id: '6',
-    name: 'Lenovo ThinkPad T480',
-    serialNumber: 'SN-LEN-2020-0192',
-    icon: 'ðŸ’»',
-    archiveDate: 'Apr 10, 2025',
-    reason: 'Decommissioned',
-  },
-];
-
-const stats = [
-  { label: 'Total', value: '128', bg: Colors.surfaceContainerHigh, textColor: Colors.primary },
-  { label: 'Damaged', value: '42', bg: Colors.errorContainer, textColor: Colors.onErrorContainer },
-  { label: 'Expired', value: '86', bg: Colors.surfaceContainerHigh, textColor: Colors.onSurfaceVariant },
-];
-
-function getReasonStyle(reason: Asset['reason']) {
+function getReasonStyle(reason: string | null) {
   switch (reason) {
     case 'Irreparable Damage':
     case 'Lost':
@@ -94,37 +32,82 @@ function getReasonStyle(reason: Asset['reason']) {
 export default function AssetsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [debouncedSearch, setDebouncedSearch] = React.useState('');
 
-  const filteredAssets = mockAssets.filter(
-    (a) =>
-      a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.serialNumber.toLowerCase().includes(searchQuery.toLowerCase()),
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const initials = React.useMemo(() => {
+    if (!user?.name) return '??';
+    return user.name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  }, [user?.name]);
+
+  const { data: summaryData } = useFetch<DashboardSummary>({
+    endpoint: '/api/summary',
+  });
+
+  const { data: assetsData, loading, error, refetch } = useFetch<PaginatedResponse<ApiAsset>>({
+    endpoint: '/api/assets',
+    params: { archived: true, search: debouncedSearch || undefined },
+  });
+
+  const { execute: restoreAsset, loading: restoring } = useMutation<{ message: string }, { id: number }>(
+    'PATCH',
+    (params) => `/api/assets/${params.id}/restore`,
   );
 
-  const renderCard = ({ item }: { item: Asset }) => {
-    const reasonStyle = getReasonStyle(item.reason);
+  const handleRestore = React.useCallback(
+    async (id: number) => {
+      try {
+        await restoreAsset({ id });
+        refetch();
+      } catch {}
+    },
+    [restoreAsset, refetch],
+  );
+
+  const assets = assetsData?.data ?? [];
+
+  const renderCard = ({ item }: { item: ApiAsset }) => {
+    const reasonStyle = getReasonStyle(item.archived_reason);
+    const archiveDate = item.archived_at
+      ? new Date(item.archived_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+      : '';
     return (
       <View style={styles.card}>
         <View style={styles.cardLeft}>
           <View style={styles.cardIcon}>
-            <Text style={styles.cardIconText}>{item.icon}</Text>
+            <Text style={styles.cardIconText}>{item.category?.icon ?? '📦'}</Text>
           </View>
         </View>
         <View style={styles.cardBody}>
           <Text style={styles.cardName} numberOfLines={1}>
             {item.name}
           </Text>
-          <Text style={styles.cardSerial}>{item.serialNumber}</Text>
+          <Text style={styles.cardSerial}>{item.asset_tag}</Text>
           <View style={styles.cardMeta}>
-            <Text style={styles.cardDate}>{item.archiveDate}</Text>
+            <Text style={styles.cardDate}>{archiveDate}</Text>
             <View style={[styles.reasonBadge, { backgroundColor: reasonStyle.bg }]}>
-              <Text style={[styles.reasonText, { color: reasonStyle.text }]}>{item.reason}</Text>
+              <Text style={[styles.reasonText, { color: reasonStyle.text }]}>{item.archived_reason ?? 'Unknown'}</Text>
             </View>
           </View>
         </View>
-        <TouchableOpacity style={styles.restoreBtn} activeOpacity={0.7}>
-          <Text style={styles.restoreBtnIcon}>â†»</Text>
+        <TouchableOpacity
+          style={styles.restoreBtn}
+          activeOpacity={0.7}
+          onPress={() => handleRestore(item.id)}
+          disabled={restoring}
+        >
+          <Text style={styles.restoreBtnIcon}>↩</Text>
         </TouchableOpacity>
       </View>
     );
@@ -137,68 +120,87 @@ export default function AssetsScreen() {
       {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.iconBtn}>
-          <Text style={styles.menuIcon}>â˜°</Text>
+          <Text style={styles.menuIcon}>☰</Text>
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>ScanTrack</Text>
         <View style={styles.topBarRight}>
           <TouchableOpacity style={styles.iconBtn}>
-            <Text style={styles.bellIcon}>ðŸ””</Text>
+            <Text style={styles.bellIcon}>🔔</Text>
           </TouchableOpacity>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>JD</Text>
+            <Text style={styles.avatarText}>{initials}</Text>
           </View>
         </View>
       </View>
 
-      <FlatList
-        data={filteredAssets}
-        keyExtractor={(item) => item.id}
-        renderItem={renderCard}
-        ListHeaderComponent={
-          <>
-            {/* Search Bar */}
-            <View style={styles.searchRow}>
-              <View style={styles.searchInput}>
-                <Text style={styles.searchIcon}>ðŸ”</Text>
-                <TextInput
-                  style={styles.searchTextInput}
-                  placeholder="Search archived assets..."
-                  placeholderTextColor={Colors.outline}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                />
-              </View>
-              <TouchableOpacity style={styles.filterBtn} activeOpacity={0.7}>
-                <Text style={styles.filterIcon}>âš™</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Header Section */}
-            <Text style={styles.screenTitle}>Archived Assets</Text>
-            <Text style={styles.screenSubtitle}>
-              Manage decommissioned inventory and historical logs.
-            </Text>
-
-            {/* Stats Chips */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.statsRow}
-            >
-              {stats.map((stat) => (
-                <View key={stat.label} style={[styles.statChip, { backgroundColor: stat.bg }]}>
-                  <Text style={[styles.statValue, { color: stat.textColor }]}>{stat.value}</Text>
-                  <Text style={[styles.statLabel, { color: stat.textColor }]}>{stat.label}</Text>
+      {loading && !assetsData ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : error ? (
+        <View style={styles.centered}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity onPress={refetch} style={styles.retryBtn}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={assets}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={renderCard}
+          ListHeaderComponent={
+            <>
+              {/* Search Bar */}
+              <View style={styles.searchRow}>
+                <View style={styles.searchInput}>
+                  <Text style={styles.searchIcon}>🔍</Text>
+                  <TextInput
+                    style={styles.searchTextInput}
+                    placeholder="Search archived assets..."
+                    placeholderTextColor={Colors.outline}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                  />
                 </View>
-              ))}
-            </ScrollView>
+                <TouchableOpacity style={styles.filterBtn} activeOpacity={0.7}>
+                  <Text style={styles.filterIcon}>⚙</Text>
+                </TouchableOpacity>
+              </View>
 
-            <Text style={styles.listHeader}>All Archived</Text>
-          </>
-        }
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+              {/* Header Section */}
+              <Text style={styles.screenTitle}>Archived Assets</Text>
+              <Text style={styles.screenSubtitle}>
+                Manage decommissioned inventory and historical logs.
+              </Text>
+
+              {/* Stats Chips */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.statsRow}
+              >
+                <View style={[styles.statChip, { backgroundColor: Colors.surfaceContainerHigh }]}>
+                  <Text style={[styles.statValue, { color: Colors.primary }]}>{summaryData?.total ?? '—'}</Text>
+                  <Text style={[styles.statLabel, { color: Colors.primary }]}>Total</Text>
+                </View>
+                <View style={[styles.statChip, { backgroundColor: Colors.errorContainer }]}>
+                  <Text style={[styles.statValue, { color: Colors.onErrorContainer }]}>{summaryData?.damaged ?? '—'}</Text>
+                  <Text style={[styles.statLabel, { color: Colors.onErrorContainer }]}>Damaged</Text>
+                </View>
+                <View style={[styles.statChip, { backgroundColor: Colors.surfaceContainerHigh }]}>
+                  <Text style={[styles.statValue, { color: Colors.onSurfaceVariant }]}>{summaryData?.expired ?? '—'}</Text>
+                  <Text style={[styles.statLabel, { color: Colors.onSurfaceVariant }]}>Expired</Text>
+                </View>
+              </ScrollView>
+
+              <Text style={styles.listHeader}>All Archived</Text>
+            </>
+          }
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {/* FAB */}
       <TouchableOpacity
@@ -216,6 +218,29 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  errorText: {
+    fontSize: 15,
+    color: Colors.onErrorContainer,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  retryBtn: {
+    backgroundColor: Colors.primaryContainer,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  retryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.onPrimaryContainer,
   },
   topBar: {
     flexDirection: 'row',

@@ -72,10 +72,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await api.post<{ token: string; user: User }>('/auth/login', { email, password });
       await api.setToken(data.token);
       setState({ user: data.user, token: data.token, isLoading: false, isAuthenticated: true });
-    } catch (e) {
-      if (e instanceof ApiError) {
-        setError(e.message);
-      }
+    } catch (e: any) {
+      const message = e instanceof ApiError ? e.message : (e.message || 'Network error. Please try again.');
+      setError(message);
       throw e;
     }
   }, []);
@@ -86,10 +85,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await api.post<{ token: string; user: User }>('/auth/register', data);
       await api.setToken(response.token);
       setState({ user: response.user, token: response.token, isLoading: false, isAuthenticated: true });
-    } catch (e) {
-      if (e instanceof ApiError) {
-        setError(e.message);
-      }
+    } catch (e: any) {
+      const message = e instanceof ApiError ? e.message : (e.message || 'Network error. Please try again.');
+      setError(message);
       throw e;
     }
   }, []);
@@ -108,10 +106,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     try {
       await api.post('/auth/forgot-password', { email });
-    } catch (e) {
-      if (e instanceof ApiError) {
-        setError(e.message);
-      }
+    } catch (e: any) {
+      const message = e instanceof ApiError ? e.message : (e.message || 'Network error. Please try again.');
+      setError(message);
       throw e;
     }
   }, []);
@@ -121,10 +118,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const user = await api.put<User>('/auth/profile', data);
       setState(prev => ({ ...prev, user }));
-    } catch (e) {
-      if (e instanceof ApiError) {
-        setError(e.message);
-      }
+    } catch (e: any) {
+      const message = e instanceof ApiError ? e.message : (e.message || 'Network error. Please try again.');
+      setError(message);
       throw e;
     }
   }, []);

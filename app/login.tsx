@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,11 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (error) setLocalError(error);
+  }, [error]);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -34,12 +39,14 @@ export default function LoginScreen() {
     }
 
     setIsLoading(true);
+    setLocalError(null);
     clearError();
     try {
       await login(email.trim(), password);
       router.replace('/(tabs)');
     } catch (e: any) {
-      Alert.alert('Login Failed', e.message || 'Invalid credentials. Please try again.');
+      const msg = e?.message || 'Invalid credentials. Please try again.';
+      setLocalError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -140,6 +147,17 @@ export default function LoginScreen() {
                 </View>
               )}
             </TouchableOpacity>
+
+            {/* Error Banner */}
+            {localError ? (
+              <View style={styles.errorBanner}>
+                <Ionicons name="alert-circle" size={18} color="#ef4444" />
+                <Text style={styles.errorText}>{localError}</Text>
+                <TouchableOpacity onPress={() => setLocalError(null)}>
+                  <Ionicons name="close" size={16} color="#ef4444" />
+                </TouchableOpacity>
+              </View>
+            ) : null}
 
             {/* Divider */}
             <View style={styles.dividerRow}>
@@ -374,5 +392,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: Colors.primary,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 16,
+    gap: 8,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#991b1b',
   },
 });

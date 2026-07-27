@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE = 'http://10.0.2.2:8080/api';
+const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL;
 
 interface ApiOptions {
   method?: string;
@@ -52,7 +52,19 @@ class ApiClient {
       config.body = isFormData ? body : JSON.stringify(body);
     }
 
-    const response = await fetch(`${API_BASE}${endpoint}`, config);
+    const url = `${API_BASE}${endpoint}`;
+    console.log(`[API] ${method} ${url}`);
+
+    let response: Response;
+    try {
+      response = await fetch(url, config);
+    } catch (fetchError: any) {
+      console.error(`[API] Network error for ${method} ${url}:`, fetchError.message);
+      throw new ApiError(
+        `Cannot connect to server. Please check your connection and ensure the backend is running at ${API_BASE}.`,
+        0
+      );
+    }
 
     if (response.status === 401) {
       await this.setToken(null);
@@ -66,6 +78,8 @@ class ApiClient {
     } catch {
       data = { message: text };
     }
+
+    console.log(`[API] ${response.status} ${method} ${url}`, data);
 
     if (!response.ok) {
       const message = data.message || data.error || 'Request failed';

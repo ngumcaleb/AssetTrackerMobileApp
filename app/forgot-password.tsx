@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -25,18 +25,24 @@ export default function ForgotPasswordScreen() {
   const [isSending, setIsSending] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [sentEmail, setSentEmail] = useState('');
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (error) setLocalError(error);
+  }, [error]);
 
   const handleSendResetLink = async () => {
     if (!email.trim()) return;
 
     setIsSending(true);
+    setLocalError(null);
     clearError();
     try {
       await forgotPassword(email.trim());
       setSentEmail(email.trim());
       setIsSuccess(true);
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Could not send reset link. Please try again.');
+      setLocalError(e?.message || 'Could not send reset link. Please try again.');
     } finally {
       setIsSending(false);
     }
@@ -99,6 +105,14 @@ export default function ForgotPasswordScreen() {
                   />
                 </View>
               </View>
+
+              {/* Error Banner */}
+              {localError ? (
+                <View style={styles.errorBanner}>
+                  <Ionicons name="alert-circle" size={18} color="#ef4444" />
+                  <Text style={styles.errorText}>{localError}</Text>
+                </View>
+              ) : null}
 
               <TouchableOpacity
                 style={[
@@ -330,5 +344,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: Colors.primary,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 16,
+    gap: 8,
+    width: '100%',
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#991b1b',
   },
 });

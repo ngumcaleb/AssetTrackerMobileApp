@@ -7,28 +7,54 @@ import {
   TouchableOpacity,
   TextInput,
   Switch,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useMutation } from '@/hooks/useFetch';
 
 export default function CheckoutAssetScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{
+    assetId?: string;
+    assetName?: string;
+    assetTag?: string;
+  }>();
+
   const [assignee, setAssignee] = useState('');
   const [department, setDepartment] = useState('Engineering');
   const [purpose, setPurpose] = useState('Site Inspection');
   const [destination, setDestination] = useState('');
   const [returnDate, setReturnDate] = useState('');
   const [notes, setNotes] = useState('');
-  const [processing, setProcessing] = useState(false);
 
-  const handleConfirm = () => {
-    setProcessing(true);
-    setTimeout(() => {
-      setProcessing(false);
+  const { execute: createCheckout, loading: processing, error: submitError } = useMutation(
+    'POST',
+    '/api/checkouts'
+  );
+
+  const handleConfirm = async () => {
+    if (!params.assetId) {
+      Alert.alert('Error', 'No asset specified for checkout.');
+      return;
+    }
+    try {
+      await createCheckout({
+        asset_id: Number(params.assetId),
+        assignee_name: assignee,
+        department,
+        purpose,
+        destination,
+        expected_return: returnDate || undefined,
+        notes,
+      });
       router.back();
-    }, 1500);
+    } catch (e: any) {
+      Alert.alert('Error', submitError || 'Failed to check out asset. Please try again.');
+    }
   };
 
   return (
@@ -50,8 +76,8 @@ export default function CheckoutAssetScreen() {
             <Text style={styles.assetIconText}>ðŸ“¦</Text>
           </View>
           <View style={styles.assetInfo}>
-            <Text style={styles.assetName}>Precision Laser Level</Text>
-            <Text style={styles.assetId}>Asset ID: ST-9942-B</Text>
+            <Text style={styles.assetName}>{params.assetName || 'Unknown Asset'}</Text>
+            <Text style={styles.assetId}>Asset ID: {params.assetTag || 'N/A'}</Text>
             <View style={styles.statusRow}>
               <View style={styles.statusDot} />
               <Text style={styles.statusText}>Available</Text>
@@ -132,14 +158,19 @@ export default function CheckoutAssetScreen() {
       </ScrollView>
 
       <View style={styles.bottomBar}>
+        {submitError && (
+          <Text style={styles.errorText}>{submitError}</Text>
+        )}
         <TouchableOpacity
           style={[styles.confirmBtn, processing && styles.confirmBtnProcessing]}
           onPress={handleConfirm}
           disabled={processing}
         >
-          <Text style={styles.confirmBtnText}>
-            {processing ? 'â³ Processing...' : 'âœ“ Confirm Check-Out'}
-          </Text>
+          {processing ? (
+            <ActivityIndicator color={Colors.onPrimary} />
+          ) : (
+            <Text style={styles.confirmBtnText}>âœ“ Confirm Check-Out</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -263,6 +294,7 @@ const styles = StyleSheet.create({
   },
   infoIcon: { fontSize: 18 },
   infoText: { flex: 1, fontSize: 14, color: Colors.primary, lineHeight: 20 },
+  errorText: { color: Colors.error, fontSize: 14, textAlign: 'center', marginBottom: 8 },
   bottomBar: {
     position: 'absolute',
     bottom: 0,

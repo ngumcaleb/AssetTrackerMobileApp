@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,16 +6,57 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '@/context/AuthContext';
+
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [email, setEmail] = useState('john.doe@scantrack.io');
-  const [phone, setPhone] = useState('+1 (555) 012-3456');
+  const { user, logout, updateProfile } = useAuth();
+
+  const [email, setEmail] = useState(user?.email ?? '');
+  const [phone, setPhone] = useState(user?.phone ?? '');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setEmail(user.email);
+      setPhone(user.phone ?? '');
+    }
+  }, [user]);
+
+  const initials = getInitials(user?.name ?? 'U');
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await updateProfile({ email, phone });
+      Alert.alert('Success', 'Profile updated successfully.');
+    } catch {
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/login');
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -37,23 +78,23 @@ export default function ProfileScreen() {
         <View style={styles.profileSection}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>JD</Text>
+              <Text style={styles.avatarText}>{initials}</Text>
             </View>
             <TouchableOpacity style={styles.editBtn}>
-              <Text style={styles.editBtnIcon}>âœï¸</Text>
+              <Text style={styles.editBtnIcon}>✏️</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.profileName}>John Doe</Text>
-          <Text style={styles.profileRole}>Logistics Manager</Text>
+          <Text style={styles.profileName}>{user?.name ?? 'User'}</Text>
+          <Text style={styles.profileRole}>{user?.role ?? 'Member'}</Text>
           <View style={styles.deptBadge}>
-            <Text style={styles.deptText}>Supply Chain Operations</Text>
+            <Text style={styles.deptText}>{user?.department ?? 'No Department'}</Text>
           </View>
         </View>
 
         <View style={styles.fieldCard}>
           <Text style={styles.fieldLabel}>Email Address</Text>
           <View style={styles.fieldInput}>
-            <Text style={styles.fieldIcon}>âœ‰ï¸</Text>
+            <Text style={styles.fieldIcon}>✉️</Text>
             <TextInput
               style={styles.input}
               value={email}
@@ -66,7 +107,7 @@ export default function ProfileScreen() {
         <View style={styles.fieldCard}>
           <Text style={styles.fieldLabel}>Phone Number</Text>
           <View style={styles.fieldInput}>
-            <Text style={styles.fieldIcon}>ðŸ“ž</Text>
+            <Text style={styles.fieldIcon}>📞</Text>
             <TextInput
               style={styles.input}
               value={phone}
@@ -79,8 +120,8 @@ export default function ProfileScreen() {
         <View style={styles.fieldCard}>
           <Text style={styles.fieldLabel}>Employee ID</Text>
           <View style={[styles.fieldInput, { opacity: 0.7 }]}>
-            <Text style={styles.fieldIcon}>ðŸªª</Text>
-            <TextInput style={styles.input} value="ST-99203" editable={false} />
+            <Text style={styles.fieldIcon}>🪪</Text>
+            <TextInput style={styles.input} value={user?.id?.toString() ?? ''} editable={false} />
           </View>
           <Text style={styles.fieldHint}>Employee ID is managed by System Administration.</Text>
         </View>
@@ -89,32 +130,36 @@ export default function ProfileScreen() {
           <Text style={styles.prefsTitle}>Preferences</Text>
           <TouchableOpacity style={styles.prefRow}>
             <View style={styles.prefLeft}>
-              <Text style={styles.prefIcon}>ðŸŒ</Text>
+              <Text style={styles.prefIcon}>🌐</Text>
               <Text style={styles.prefLabel}>Language</Text>
             </View>
             <View style={styles.prefRight}>
               <Text style={styles.prefValue}>English (US)</Text>
-              <Text style={styles.chevron}>â€º</Text>
+              <Text style={styles.chevron}>›</Text>
             </View>
           </TouchableOpacity>
           <View style={styles.divider} />
           <TouchableOpacity style={styles.prefRow}>
             <View style={styles.prefLeft}>
-              <Text style={styles.prefIcon}>ðŸŒ™</Text>
+              <Text style={styles.prefIcon}>🌙</Text>
               <Text style={styles.prefLabel}>Appearance</Text>
             </View>
             <View style={styles.prefRight}>
               <Text style={styles.prefValue}>Light Mode</Text>
-              <Text style={styles.chevron}>â€º</Text>
+              <Text style={styles.chevron}>›</Text>
             </View>
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.saveBtn}>
-          <Text style={styles.saveBtnText}>Save Changes</Text>
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
+          {saving ? (
+            <ActivityIndicator color={Colors.onPrimary} />
+          ) : (
+            <Text style={styles.saveBtnText}>Save Changes</Text>
+          )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.logoutBtn}>
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Text style={styles.logoutBtnText}>Log Out</Text>
         </TouchableOpacity>
       </ScrollView>

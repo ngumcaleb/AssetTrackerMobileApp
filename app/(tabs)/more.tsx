@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '@/context/AuthContext';
 
 interface SettingsRowProps {
   icon: string;
@@ -31,7 +32,7 @@ function SettingsRow({ icon, label, value, hasChevron = true, onPress }: Setting
       </View>
       <View style={styles.rowRight}>
         {value ? <Text style={styles.rowValue}>{value}</Text> : null}
-        {hasChevron ? <Text style={styles.chevron}>â€º</Text> : null}
+        {hasChevron ? <Text style={styles.chevron}>›</Text> : null}
       </View>
     </TouchableOpacity>
   );
@@ -44,7 +45,25 @@ function SectionHeader({ title }: { title: string }) {
 export default function MoreScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { user, logout } = useAuth();
   const [biometricEnabled, setBiometricEnabled] = React.useState(true);
+
+  const initials = React.useMemo(() => {
+    if (!user?.name) return '??';
+    return user.name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  }, [user?.name]);
+
+  const handleLogout = React.useCallback(async () => {
+    try {
+      await logout();
+      router.replace('/login');
+    } catch {}
+  }, [logout, router]);
 
   return (
     <View style={[styles.safeArea, { paddingTop: insets.top }]}>
@@ -53,15 +72,15 @@ export default function MoreScreen() {
       {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.iconBtn}>
-          <Text style={styles.menuIcon}>â˜°</Text>
+          <Text style={styles.menuIcon}>☰</Text>
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>ScanTrack</Text>
         <View style={styles.topBarRight}>
           <TouchableOpacity style={styles.iconBtn}>
-            <Text style={styles.bellIcon}>ðŸ””</Text>
+            <Text style={styles.bellIcon}>🔔</Text>
           </TouchableOpacity>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>JD</Text>
+            <Text style={styles.avatarText}>{initials}</Text>
           </View>
         </View>
       </View>
@@ -85,33 +104,33 @@ export default function MoreScreen() {
             </View>
             <View style={styles.orgInfo}>
               <Text style={styles.orgName}>Global Logistics Hub</Text>
-              <Text style={styles.orgPlan}>Enterprise Plan Â· 128 assets</Text>
+              <Text style={styles.orgPlan}>Enterprise Plan · 128 assets</Text>
             </View>
-            <Text style={styles.chevron}>â€º</Text>
+            <Text style={styles.chevron}>›</Text>
           </TouchableOpacity>
           <View style={styles.divider} />
-          <SettingsRow icon="ðŸ¢" label="Workspace Details" />
+          <SettingsRow icon="🏢" label="Workspace Details" />
         </View>
 
         {/* Preferences */}
         <SectionHeader title="Preferences" />
         <View style={styles.card}>
-          <SettingsRow icon="ðŸŽ¨" label="Theme" value="System Light" />
+          <SettingsRow icon="🎨" label="Theme" value="System Light" />
           <View style={styles.divider} />
-          <SettingsRow icon="ðŸ””" label="Notifications" value="Enabled" />
+          <SettingsRow icon="🔔" label="Notifications" value="Enabled" />
           <View style={styles.divider} />
-          <SettingsRow icon="ðŸŒ" label="Language" value="English US" />
+          <SettingsRow icon="🌍" label="Language" value="English US" />
         </View>
 
         {/* Security */}
         <SectionHeader title="Security" />
         <View style={styles.card}>
-          <SettingsRow icon="ðŸ”’" label="Change Password" />
+          <SettingsRow icon="🔑" label="Change Password" />
           <View style={styles.divider} />
           <View style={styles.row}>
             <View style={styles.rowLeft}>
               <View style={styles.rowIcon}>
-                <Text style={styles.rowIconText}>ðŸ”</Text>
+                <Text style={styles.rowIconText}>🔐</Text>
               </View>
               <Text style={styles.rowLabel}>Biometric Lock</Text>
             </View>
@@ -127,16 +146,16 @@ export default function MoreScreen() {
         {/* Data & Privacy */}
         <SectionHeader title="Data & Privacy" />
         <View style={styles.card}>
-          <SettingsRow icon="â˜ï¸" label="Backup & Sync" />
+          <SettingsRow icon="☁️" label="Backup & Sync" />
           <View style={styles.divider} />
-          <SettingsRow icon="ðŸ“¤" label="Export Assets Data" />
+          <SettingsRow icon="📤" label="Export Assets Data" />
           <View style={styles.divider} />
-          <SettingsRow icon="ðŸ“„" label="Privacy Policy" />
+          <SettingsRow icon="📄" label="Privacy Policy" />
         </View>
 
         {/* Logout */}
-        <TouchableOpacity style={styles.logoutBtn} activeOpacity={0.7}>
-          <Text style={styles.logoutIcon}>â»</Text>
+        <TouchableOpacity style={styles.logoutBtn} activeOpacity={0.7} onPress={handleLogout}>
+          <Text style={styles.logoutIcon}>⏻</Text>
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
 

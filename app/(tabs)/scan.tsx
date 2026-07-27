@@ -6,17 +6,49 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFetch } from '@/hooks/useFetch';
+import type { PaginatedResponse, ActivityLog, Asset } from '@/types/api';
 
 const { width } = Dimensions.get('window');
+
+const formatTimeAgo = (dateStr: string): string => {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+};
 
 export default function ScanScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const scanLineAnim = useRef(new Animated.Value(0)).current;
+
+  const { data: activityData, loading: activityLoading } = useFetch<PaginatedResponse<ActivityLog>>({
+    endpoint: '/api/activity',
+    params: { per_page: 5 },
+  });
+
+  const recentScans = (activityData?.data ?? [])
+    .filter((log) => log.type === 'checkout' || log.type === 'return')
+    .slice(0, 5)
+    .map((log) => ({
+      id: String(log.id),
+      name: log.asset?.asset_tag ?? 'Unknown',
+      desc: log.description,
+      time: formatTimeAgo(log.created_at),
+      color: log.type === 'checkout' ? Colors.primary : Colors.tertiary,
+      asset: log.asset,
+    }));
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -42,10 +74,28 @@ export default function ScanScreen() {
     outputRange: [0, 260],
   });
 
-  const recentScans = [
-    { id: '1', name: 'Asset-77492-X', desc: 'Industrial Compressor', time: '2m ago', color: Colors.primary },
-    { id: '2', name: 'Shipment-B440', desc: 'North Wing Logistics', time: '15m ago', color: Colors.tertiary },
-  ];
+  const handleManualEntry = () => {
+    Alert.prompt(
+      'Manual Entry',
+      'Enter an asset tag to look up',
+      async (tag) => {
+        if (!tag?.trim()) return;
+        try {
+          const { api } = await import('@/services/api');
+          const result = await api.get<Asset>('/assets?code=' + encodeURIComponent(tag.trim()));
+          const asset = result as any;
+          if (asset && asset.id) {
+            router.push({ pathname: '/asset-detail', params: { id: String(asset.id) } });
+          } else {
+            Alert.alert('Not Found', 'No asset found with that tag.');
+          }
+        } catch {
+          Alert.alert('Error', 'Failed to look up asset.');
+        }
+      },
+      'plain-text'
+    );
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -82,15 +132,15 @@ export default function ScanScreen() {
 
           <View style={styles.floatingControls}>
             <TouchableOpacity style={styles.floatBtn}>
-              <Text style={styles.floatBtnIcon}>âš¡</Text>
+              <Text style={styles.floatBtnIcon}>⚡</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.floatBtn}>
-              <Text style={styles.floatBtnIcon}>ðŸ”„</Text>
+              <Text style={styles.floatBtnIcon}>🔄</Text>
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.manualEntryBtn}>
-            <Text style={styles.manualEntryText}>âŒ¨ Manual Entry</Text>
+          <TouchableOpacity style={styles.manualEntryBtn} onPress={handleManualEntry}>
+            <Text style={styles.manualEntryText}>⌨ Manual Entry</Text>
           </TouchableOpacity>
 
           <View style={styles.recentScansCard}>
@@ -100,18 +150,34 @@ export default function ScanScreen() {
                 <Text style={styles.viewAllBtn}>View All</Text>
               </TouchableOpacity>
             </View>
-            {recentScans.map((scan) => (
-              <TouchableOpacity key={scan.id} style={styles.scanItem}>
-                <View style={[styles.scanItemIcon, { backgroundColor: scan.color + '15' }]}>
-                  <View style={[styles.scanItemDot, { backgroundColor: scan.color }]} />
-                </View>
-                <View style={styles.scanItemInfo}>
-                  <Text style={styles.scanItemName}>{scan.name}</Text>
-                  <Text style={styles.scanItemDesc}>{scan.desc} Â· {scan.time}</Text>
-                </View>
-                <Text style={styles.chevron}>â€º</Text>
-              </TouchableOpacity>
-            ))}
+            {activityLoading ? (
+              <ActivityIndicator size="small" color={Colors.primary} style={{ paddingVertical: 12 }} />
+            ) : recentScans.length === 0 ? (
+              <Text style={{ textAlign: 'center', color: Colors.onSurfaceVariant, paddingVertical: 12 }}>
+                No recent activity
+              </Text>
+            ) : (
+              recentScans.map((scan) => (
+                <TouchableOpacity
+                  key={scan.id}
+                  style={styles.scanItem}
+                  onPress={() => {
+                    if (scan.asset) {
+                      router.push({ pathname: '/asset-detail', params: { id: String(scan.asset!.id) } });
+                    }
+                  }}
+                >
+                  <View style={[styles.scanItemIcon, { backgroundColor: scan.color + '15' }]}>
+                    <View style={[styles.scanItemDot, { backgroundColor: scan.color }]} />
+                  </View>
+                  <View style={styles.scanItemInfo}>
+                    <Text style={styles.scanItemName}>{scan.name}</Text>
+                    <Text style={styles.scanItemDesc}>{scan.desc} · {scan.time}</Text>
+                  </View>
+                  <Text style={styles.chevron}>›</Text>
+                </TouchableOpacity>
+              ))
+            )}
           </View>
         </View>
       </View>

@@ -6,34 +6,72 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFetch, useMutation } from '@/hooks/useFetch';
+import type { Asset, PaginatedResponse, DashboardSummary } from '@/types/api';
 
-const ARCHIVED_ASSETS = [
-  { id: '1', name: 'Old Forklift Model T', serial: 'SN: 4920-XJ-99', date: 'Oct 12, 2023', reason: 'Irreparable Damage', icon: 'ðŸ—ï¸', isError: true },
-  { id: '2', name: 'Broken Laser Cutter', serial: 'SN: LZR-882-B', date: 'Nov 05, 2023', reason: 'Decommissioned', icon: 'âš™ï¸', isError: false },
-  { id: '3', name: 'Handheld Scanner V1', serial: 'SN: SCAN-001', date: 'Dec 20, 2023', reason: 'End of Life Cycle', icon: 'ðŸ“±', isError: false },
-  { id: '4', name: 'Legacy Server Rack', serial: 'SN: SRV-5500', date: 'Jan 15, 2024', reason: 'Hardware Obsolete', icon: 'ðŸ–¥ï¸', isError: true },
-  { id: '5', name: 'Worn Conveyor Belt', serial: 'SN: CVY-012', date: 'Feb 03, 2024', reason: 'Irreparable Damage', icon: 'ðŸ”„', isError: true },
-];
+const ASSET_ICONS: Record<string, string> = {
+  forklift: '🚜',
+  laser: '⚙️',
+  scanner: '📱',
+  server: '🖥️',
+  conveyor: '🔄',
+  default: '📦',
+};
+
+function getAssetIcon(name: string): string {
+  const lower = name.toLowerCase();
+  if (lower.includes('forklift')) return ASSET_ICONS.forklift;
+  if (lower.includes('laser')) return ASSET_ICONS.laser;
+  if (lower.includes('scanner')) return ASSET_ICONS.scanner;
+  if (lower.includes('server')) return ASSET_ICONS.server;
+  if (lower.includes('conveyor')) return ASSET_ICONS.conveyor;
+  return ASSET_ICONS.default;
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 export default function ArchivedAssetsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
+  const [restoringId, setRestoringId] = useState<number | null>(null);
 
-  const filtered = ARCHIVED_ASSETS.filter(
-    (a) => a.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const { data, loading, error, refetch } = useFetch<PaginatedResponse<Asset>>({
+    endpoint: '/api/assets',
+    params: { archived: true, search: search || undefined },
+  });
+
+  const { data: summary } = useFetch<DashboardSummary>({
+    endpoint: '/api/summary',
+  });
+
+  const { execute: restoreAsset } = useMutation('PATCH', (params: { id: number }) => `/api/assets/${params.id}/restore`);
+
+  const assets = data?.data ?? [];
+
+  const handleRestore = async (assetId: number) => {
+    setRestoringId(assetId);
+    try {
+      await restoreAsset({ id: assetId });
+      refetch();
+    } catch {} finally {
+      setRestoringId(null);
+    }
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backArrow}>â†</Text>
+          <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
         <Text style={styles.topTitle}>ScanTrack</Text>
         <View style={styles.topRight}>
@@ -48,7 +86,7 @@ export default function ArchivedAssetsScreen() {
         <Text style={styles.screenSubtitle}>Manage decommissioned inventory and historical logs.</Text>
 
         <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>ðŸ”</Text>
+          <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
             placeholder="Search archived items..."
@@ -57,54 +95,85 @@ export default function ArchivedAssetsScreen() {
             onChangeText={setSearch}
           />
           <TouchableOpacity style={styles.filterBtn}>
-            <Text style={styles.filterIcon}>âš™</Text>
+            <Text style={styles.filterIcon}>⚙</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.statsRow}>
           <View style={[styles.statChip, { backgroundColor: Colors.primary + '1A', borderColor: Colors.primary + '33' }]}>
-            <Text style={[styles.statText, { color: Colors.primary }]}>Total: 128</Text>
+            <Text style={[styles.statText, { color: Colors.primary }]}>Total: {summary?.total ?? 0}</Text>
           </View>
           <View style={[styles.statChip, { backgroundColor: Colors.error + '1A', borderColor: Colors.error + '33' }]}>
-            <Text style={[styles.statText, { color: Colors.error }]}>Damaged: 42</Text>
+            <Text style={[styles.statText, { color: Colors.error }]}>Damaged: {summary?.damaged ?? 0}</Text>
           </View>
           <View style={[styles.statChip, { backgroundColor: Colors.onSurfaceVariant + '1A', borderColor: Colors.onSurfaceVariant + '33' }]}>
-            <Text style={[styles.statText, { color: Colors.onSurfaceVariant }]}>Expired: 86</Text>
+            <Text style={[styles.statText, { color: Colors.onSurfaceVariant }]}>Expired: {summary?.expired ?? 0}</Text>
           </View>
         </View>
 
-        {filtered.map((item) => (
+        {loading && (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+          </View>
+        )}
+
+        {error && !loading && (
+          <View style={styles.centered}>
+            <Text style={styles.emptyTitle}>Something went wrong</Text>
+            <Text style={styles.emptyDesc}>{error}</Text>
+            <TouchableOpacity onPress={refetch} style={[styles.filterChip, { marginTop: 12 }]}>
+              <Text style={styles.filterChipText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!loading && !error && assets.map((item) => (
           <View key={item.id} style={styles.assetCard}>
             <View style={styles.cardTop}>
               <View style={styles.cardLeft}>
                 <View style={styles.cardIcon}>
-                  <Text style={styles.cardIconText}>{item.icon}</Text>
+                  <Text style={styles.cardIconText}>{getAssetIcon(item.name)}</Text>
                 </View>
                 <View>
                   <Text style={styles.cardName}>{item.name}</Text>
-                  <Text style={styles.cardSerial}>{item.serial}</Text>
+                  <Text style={styles.cardSerial}>SN: {item.serial}</Text>
                 </View>
               </View>
-              <TouchableOpacity style={styles.restoreBtn}>
-                <Text style={styles.restoreBtnIcon}>â†©</Text>
+              <TouchableOpacity
+                style={styles.restoreBtn}
+                onPress={() => handleRestore(item.id)}
+                disabled={restoringId === item.id}
+              >
+                {restoringId === item.id ? (
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                ) : (
+                  <Text style={styles.restoreBtnIcon}>↩</Text>
+                )}
               </TouchableOpacity>
             </View>
             <View style={styles.cardBottom}>
               <View>
                 <Text style={styles.cardLabel}>Archive Date</Text>
-                <Text style={styles.cardDate}>{item.date}</Text>
+                <Text style={styles.cardDate}>{formatDate(item.archived_at)}</Text>
               </View>
               <View>
                 <Text style={styles.cardLabel}>Reason</Text>
-                <View style={[styles.reasonBadge, item.isError ? styles.reasonError : styles.reasonNeutral]}>
-                  <Text style={[styles.reasonText, item.isError ? styles.reasonTextError : styles.reasonTextNeutral]}>
-                    {item.reason}
+                <View style={[styles.reasonBadge, item.archived_reason?.toLowerCase().includes('damage') ? styles.reasonError : styles.reasonNeutral]}>
+                  <Text style={[styles.reasonText, item.archived_reason?.toLowerCase().includes('damage') ? styles.reasonTextError : styles.reasonTextNeutral]}>
+                    {item.archived_reason ?? 'N/A'}
                   </Text>
                 </View>
               </View>
             </View>
           </View>
         ))}
+
+        {!loading && !error && assets.length === 0 && (
+          <View style={styles.centered}>
+            <Text style={styles.emptyTitle}>No archived assets</Text>
+            <Text style={styles.emptyDesc}>Archived assets will appear here.</Text>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -168,4 +237,12 @@ const styles = StyleSheet.create({
   reasonText: { fontSize: 12, fontWeight: '600' },
   reasonTextError: { color: Colors.onErrorContainer },
   reasonTextNeutral: { color: Colors.onSurfaceVariant },
+  centered: { alignItems: 'center', justifyContent: 'center', padding: 24 },
+  emptyTitle: { fontSize: 18, fontWeight: '600', color: Colors.onSurface, marginBottom: 4 },
+  emptyDesc: { fontSize: 14, color: Colors.outline },
+  filterChip: {
+    paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: Colors.surfaceContainerLow, borderWidth: 1, borderColor: Colors.outlineVariant + '4D',
+  },
+  filterChipText: { fontSize: 14, fontWeight: '500', color: Colors.onSurfaceVariant },
 });

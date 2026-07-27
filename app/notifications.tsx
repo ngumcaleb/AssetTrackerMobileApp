@@ -1,26 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFetch, useMutation } from '@/hooks/useFetch';
+import type { Notification, PaginatedResponse } from '@/types/api';
 
 type FilterType = 'All' | 'Unread' | 'Check-Ins' | 'Check-Outs' | 'Maintenance' | 'System';
-
-interface Notification {
-  id: string;
-  type: 'checkin' | 'maintenance' | 'registration' | 'alert' | 'system';
-  title: string;
-  description: string;
-  timestamp: string;
-  unread: boolean;
-  urgent: boolean;
-}
 
 interface NotificationGroup {
   label: string;
@@ -29,126 +22,123 @@ interface NotificationGroup {
 
 const FILTERS: FilterType[] = ['All', 'Unread', 'Check-Ins', 'Check-Outs', 'Maintenance', 'System'];
 
-const NOTIFICATION_GROUPS: NotificationGroup[] = [
-  {
-    label: 'Today',
-    data: [
-      {
-        id: '1',
-        type: 'checkin',
-        title: 'Asset Checked In',
-        description: 'Industrial Forklift XL-20 was returned by Sarah Jenkins',
-        timestamp: '10:45 AM',
-        unread: true,
-        urgent: false,
-      },
-      {
-        id: '2',
-        type: 'maintenance',
-        title: 'Maintenance Due',
-        description: 'HVAC Unit B-Tier scheduled for quarterly maintenance',
-        timestamp: '08:20 AM',
-        unread: true,
-        urgent: false,
-      },
-      {
-        id: '3',
-        type: 'registration',
-        title: 'New Asset Registered',
-        description: 'Pallet Jack P-5 added to inventory by System Admin',
-        timestamp: '07:30 AM',
-        unread: false,
-        urgent: false,
-      },
-    ],
-  },
-  {
-    label: 'Yesterday',
-    data: [
-      {
-        id: '4',
-        type: 'alert',
-        title: 'Check-Out Overdue',
-        description: 'Precision Laser Cutter return is 2 days overdue',
-        timestamp: 'Yesterday',
-        unread: true,
-        urgent: true,
-      },
-      {
-        id: '5',
-        type: 'system',
-        title: 'System Update',
-        description: 'ScanTrack v2.4.0 is available with new features',
-        timestamp: 'Yesterday',
-        unread: false,
-        urgent: false,
-      },
-    ],
-  },
-  {
-    label: 'This Week',
-    data: [
-      {
-        id: '6',
-        type: 'system',
-        title: 'Bulk Import Complete',
-        description: '45 assets imported successfully from CSV',
-        timestamp: 'Mon',
-        unread: false,
-        urgent: false,
-      },
-      {
-        id: '7',
-        type: 'system',
-        title: 'Security Alert',
-        description: 'New login detected from Chrome on Windows',
-        timestamp: 'Mon',
-        unread: false,
-        urgent: false,
-      },
-    ],
-  },
-];
-
-const TYPE_CONFIG: Record<Notification['type'], { bg: string; icon: string }> = {
-  checkin: { bg: Colors.secondaryContainer, icon: 'â†“' },
-  maintenance: { bg: Colors.tertiaryContainer, icon: 'âš™' },
+const TYPE_CONFIG: Record<string, { bg: string; icon: string }> = {
+  checkout: { bg: Colors.secondaryContainer, icon: '↓' },
+  checkin: { bg: Colors.secondaryContainer, icon: '↓' },
+  return: { bg: Colors.secondaryContainer, icon: '↓' },
+  maintenance: { bg: Colors.tertiaryContainer, icon: '⚙' },
   registration: { bg: Colors.tertiaryContainer, icon: '+' },
+  asset_created: { bg: Colors.tertiaryContainer, icon: '+' },
   alert: { bg: Colors.errorContainer, icon: '!' },
-  system: { bg: Colors.surfaceContainerHighest, icon: 'â—†' },
+  overdue: { bg: Colors.errorContainer, icon: '!' },
+  system: { bg: Colors.surfaceContainerHighest, icon: '★' },
 };
+
+function groupNotifications(notifications: Notification[]): NotificationGroup[] {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const weekAgo = new Date(today);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  const groups: Record<string, Notification[]> = {
+    Today: [],
+    Yesterday: [],
+    'This Week': [],
+    Older: [],
+  };
+
+  for (const n of notifications) {
+    const d = new Date(n.created_at);
+    if (d >= today) {
+      groups.Today.push(n);
+    } else if (d >= yesterday) {
+      groups.Yesterday.push(n);
+    } else if (d >= weekAgo) {
+      groups['This Week'].push(n);
+    } else {
+      groups.Older.push(n);
+    }
+  }
+
+  return Object.entries(groups)
+    .filter(([, data]) => data.length > 0)
+    .map(([label, data]) => ({ label, data }));
+}
+
+function formatTime(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
 
 export default function NotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [activeFilter, setActiveFilter] = useState<FilterType>('All');
+  const [localNotifications, setLocalNotifications] = useState<Notification[] | null>(null);
 
-  const matchFilter = (n: Notification, filter: FilterType): boolean => {
+  const { data, loading, error, refetch } = useFetch<{ data: Notification[]; meta: any; unread_count: number }>({
+    endpoint: '/api/notifications',
+  });
+
+  const { execute: markAllRead, loading: markingAll } = useMutation('PUT', '/api/notifications/read-all');
+  const { execute: markRead } = useMutation('PUT', (params: { id: number }) => `/api/notifications/${params.id}/read`);
+
+  const notifications = localNotifications ?? data?.data ?? [];
+  const unreadCount = data?.unread_count ?? notifications.filter((n) => !n.is_read).length;
+
+  const groups = useMemo(() => groupNotifications(notifications), [notifications]);
+
+  const matchFilter = useCallback((n: Notification, filter: FilterType): boolean => {
     if (filter === 'All') return true;
-    if (filter === 'Unread') return n.unread;
-    if (filter === 'Check-Ins') return n.type === 'checkin' || n.type === 'registration';
-    if (filter === 'Check-Outs') return n.title.toLowerCase().includes('checkout') || n.title.toLowerCase().includes('overdue');
+    if (filter === 'Unread') return !n.is_read;
+    if (filter === 'Check-Ins') return n.type === 'checkin' || n.type === 'registration' || n.type === 'asset_created';
+    if (filter === 'Check-Outs') return n.type === 'checkout' || n.type === 'overdue';
     if (filter === 'Maintenance') return n.type === 'maintenance';
     if (filter === 'System') return n.type === 'system';
     return true;
+  }, []);
+
+  const filteredGroups = groups
+    .map((group) => ({
+      ...group,
+      data: group.data.filter((n) => matchFilter(n, activeFilter)),
+    }))
+    .filter((group) => group.data.length > 0);
+
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllRead({});
+      setLocalNotifications((prev) => {
+        const current = prev ?? data?.data ?? [];
+        return current.map((n) => ({ ...n, is_read: true }));
+      });
+    } catch {}
   };
 
-  const filteredGroups = NOTIFICATION_GROUPS.map((group) => ({
-    ...group,
-    data: group.data.filter((n) => matchFilter(n, activeFilter)),
-  })).filter((group) => group.data.length > 0);
+  const handleMarkRead = async (notification: Notification) => {
+    if (notification.is_read) return;
+    try {
+      await markRead({ id: notification.id });
+      setLocalNotifications((prev) => {
+        const current = prev ?? data?.data ?? [];
+        return current.map((n) => (n.id === notification.id ? { ...n, is_read: true } : n));
+      });
+    } catch {}
+  };
 
   const renderNotification = (item: Notification) => {
-    const config = TYPE_CONFIG[item.type];
+    const config = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.system;
 
     return (
       <TouchableOpacity
         key={item.id}
         style={[
           styles.notifCard,
-          item.urgent && styles.notifCardUrgent,
         ]}
         activeOpacity={0.7}
+        onPress={() => handleMarkRead(item)}
       >
         <View style={styles.notifLeft}>
           <View style={[styles.notifIcon, { backgroundColor: config.bg }]}>
@@ -158,15 +148,15 @@ export default function NotificationsScreen() {
 
         <View style={styles.notifBody}>
           <View style={styles.notifTitleRow}>
-            <Text style={[styles.notifTitle, item.unread && styles.notifTitleUnread]} numberOfLines={1}>
+            <Text style={[styles.notifTitle, !item.is_read && styles.notifTitleUnread]} numberOfLines={1}>
               {item.title}
             </Text>
-            {item.unread && <View style={styles.unreadDot} />}
+            {!item.is_read && <View style={styles.unreadDot} />}
           </View>
           <Text style={styles.notifDesc} numberOfLines={2}>
             {item.description}
           </Text>
-          <Text style={styles.notifTimestamp}>{item.timestamp}</Text>
+          <Text style={styles.notifTimestamp}>{formatTime(item.created_at)}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -176,11 +166,13 @@ export default function NotificationsScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backArrow}>â†</Text>
+          <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.topTitle}>Notifications</Text>
-        <TouchableOpacity style={styles.markAllBtn}>
-          <Text style={styles.markAllText}>Mark all read</Text>
+        <Text style={styles.topTitle}>
+          Notifications{unreadCount ? ` (${unreadCount})` : ''}
+        </Text>
+        <TouchableOpacity style={styles.markAllBtn} onPress={handleMarkAllRead} disabled={markingAll}>
+          <Text style={styles.markAllText}>{markingAll ? '...' : 'Mark all read'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -212,31 +204,49 @@ export default function NotificationsScreen() {
         </ScrollView>
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {filteredGroups.map((group) => (
-          <View key={group.label} style={styles.section}>
-            <Text style={styles.sectionHeader}>{group.label}</Text>
-            {group.data.map(renderNotification)}
-          </View>
-        ))}
-
-        {filteredGroups.length === 0 && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>ðŸ””</Text>
-            <Text style={styles.emptyTitle}>No notifications</Text>
-            <Text style={styles.emptyDesc}>Nothing matches this filter right now.</Text>
-          </View>
-        )}
-
-        <View style={styles.caughtUp}>
-          <View style={styles.caughtUpDot} />
-          <Text style={styles.caughtUpText}>You're all caught up!</Text>
+      {loading && (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={Colors.primary} />
         </View>
-      </ScrollView>
+      )}
+
+      {error && !loading && (
+        <View style={styles.centered}>
+          <Text style={styles.emptyTitle}>Something went wrong</Text>
+          <Text style={styles.emptyDesc}>{error}</Text>
+          <TouchableOpacity onPress={refetch} style={[styles.filterChip, { marginTop: 12 }]}>
+            <Text style={styles.filterChipText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {!loading && !error && (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {filteredGroups.map((group) => (
+            <View key={group.label} style={styles.section}>
+              <Text style={styles.sectionHeader}>{group.label}</Text>
+              {group.data.map(renderNotification)}
+            </View>
+          ))}
+
+          {filteredGroups.length === 0 && (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyIcon}>🔔</Text>
+              <Text style={styles.emptyTitle}>No notifications</Text>
+              <Text style={styles.emptyDesc}>Nothing matches this filter right now.</Text>
+            </View>
+          )}
+
+          <View style={styles.caughtUp}>
+            <View style={styles.caughtUpDot} />
+            <Text style={styles.caughtUpText}>You're all caught up!</Text>
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -431,5 +441,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: Colors.outline,
+  },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
   },
 });

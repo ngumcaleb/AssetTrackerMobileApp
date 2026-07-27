@@ -6,31 +6,30 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const ASSET_INFO = [
-  { label: 'Asset ID', value: 'ST-8829-XL', copyable: true },
-  { label: 'Category', value: 'Precision Tools' },
-  { label: 'Brand', value: 'LaserTech Pro' },
-  { label: 'Model', value: 'XR-9000' },
-  { label: 'Serial', value: 'SN-LSR-9920-ABC' },
-  { label: 'Purchase Date', value: 'Oct 15, 2023' },
-  { label: 'Purchase Price', value: '$12,500.00' },
-  { label: 'Supplier', value: 'Global Industrial Supply' },
-];
+import { useFetch } from '@/hooks/useFetch';
+import { Asset } from '@/types/api';
 
 export default function AssetDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const [copied, setCopied] = useState(false);
 
+  const { data: asset, loading, error } = useFetch<Asset>({
+    endpoint: `/api/assets/${id}`,
+  });
+
   const handleCopyId = () => {
-    setCopied(true);
-    Alert.alert('Copied', 'Asset ID copied to clipboard');
-    setTimeout(() => setCopied(false), 2000);
+    if (asset) {
+      setCopied(true);
+      Alert.alert('Copied', 'Asset ID copied to clipboard');
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const handleMoreOptions = () => {
@@ -40,6 +39,69 @@ export default function AssetDetailScreen() {
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.safeArea, { paddingTop: insets.top }]}>
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Text style={styles.backArrow}>â†</Text>
+          </TouchableOpacity>
+          <Text style={styles.topTitle}>Asset Detail</Text>
+          <View style={styles.moreBtn} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      </View>
+    );
+  }
+
+  if (error || !asset) {
+    return (
+      <View style={[styles.safeArea, { paddingTop: insets.top }]}>
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Text style={styles.backArrow}>â†</Text>
+          </TouchableOpacity>
+          <Text style={styles.topTitle}>Asset Detail</Text>
+          <View style={styles.moreBtn} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.errorText}>{error || 'Asset not found'}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  const checkout = asset.current_checkout;
+  const statusLabel = asset.status === 'checked_out' ? 'Checked Out'
+    : asset.status === 'archived' ? 'Archived'
+    : 'Active';
+  const statusColor = asset.status === 'checked_out' ? '#f59e0b'
+    : asset.status === 'archived' ? Colors.outline
+    : '#22c55e';
+  const statusBg = asset.status === 'checked_out' ? '#fef3c7'
+    : asset.status === 'archived' ? Colors.surfaceContainerHigh
+    : '#e6f9e6';
+  const statusTextColor = asset.status === 'checked_out' ? '#d97706'
+    : asset.status === 'archived' ? Colors.outline
+    : '#16a34a';
+
+  const ASSET_INFO = [
+    { label: 'Asset ID', value: asset.asset_tag, copyable: true },
+    { label: 'Category', value: asset.category?.name || 'N/A' },
+    { label: 'Brand', value: asset.brand || 'N/A' },
+    { label: 'Model', value: asset.model || 'N/A' },
+    { label: 'Serial', value: asset.serial || 'N/A' },
+    { label: 'Purchase Date', value: asset.purchase_date || 'N/A' },
+    { label: 'Purchase Price', value: asset.purchase_price != null ? `$${asset.purchase_price.toLocaleString()}` : 'N/A' },
+    { label: 'Supplier', value: asset.supplier || 'N/A' },
+  ];
+
+  const assignedInitials = checkout?.assignee_name
+    ? checkout.assignee_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+    : '??';
 
   return (
     <View style={[styles.safeArea, { paddingTop: insets.top }]}>
@@ -60,31 +122,39 @@ export default function AssetDetailScreen() {
       >
         <View style={styles.heroSection}>
           <View style={styles.imagePlaceholder}>
-            <Text style={styles.cameraIcon}>ðŸ“·</Text>
-            <Text style={styles.imageLabel}>Asset Photo</Text>
+            {asset.photo_url ? null : (
+              <>
+                <Text style={styles.cameraIcon}>ðŸ“·</Text>
+                <Text style={styles.imageLabel}>Asset Photo</Text>
+              </>
+            )}
           </View>
           <View style={styles.heroOverlay}>
-            <Text style={styles.heroAssetName}>High-Precision Laser Welder</Text>
-            <View style={styles.statusBadge}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>Active</Text>
+            <Text style={styles.heroAssetName}>{asset.name}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
+              <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+              <Text style={[styles.statusText, { color: statusTextColor }]}>{statusLabel}</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.statsRow}>
           <View style={styles.statChip}>
-            <View style={styles.greenDot} />
-            <Text style={styles.statChipText}>Available</Text>
+            <View style={[styles.greenDot, { backgroundColor: statusColor }]} />
+            <Text style={styles.statChipText}>{statusLabel}</Text>
           </View>
-          <View style={styles.statChip}>
-            <Text style={styles.statChipIcon}>ðŸ“</Text>
-            <Text style={styles.statChipText}>Zone B-4</Text>
-          </View>
-          <View style={styles.statChip}>
-            <Text style={styles.statChipIcon}>ðŸ“…</Text>
-            <Text style={styles.statChipText}>Since Oct 15</Text>
-          </View>
+          {asset.location && (
+            <View style={styles.statChip}>
+              <Text style={styles.statChipIcon}>ðŸ“</Text>
+              <Text style={styles.statChipText}>{asset.location}</Text>
+            </View>
+          )}
+          {asset.created_at && (
+            <View style={styles.statChip}>
+              <Text style={styles.statChipIcon}>ðŸ“…</Text>
+              <Text style={styles.statChipText}>Since {new Date(asset.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.infoCard}>
@@ -100,7 +170,7 @@ export default function AssetDetailScreen() {
                     style={styles.copyBtn}
                   >
                     <Text style={styles.copyBtnText}>
-                      {copied ? 'âœ“' : 'ðŸ“‹'}
+                      {copied ? 'âœ"' : 'ðŸ"‹'}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -109,48 +179,73 @@ export default function AssetDetailScreen() {
           ))}
         </View>
 
-        <View style={styles.infoCard}>
-          <Text style={styles.sectionHeader}>Current Assignment</Text>
-          <View style={styles.assignmentRow}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>JD</Text>
+        {checkout && (
+          <View style={styles.infoCard}>
+            <Text style={styles.sectionHeader}>Current Assignment</Text>
+            <View style={styles.assignmentRow}>
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarText}>{assignedInitials}</Text>
+              </View>
+              <View style={styles.assignmentInfo}>
+                <Text style={styles.assignmentName}>{checkout.assignee_name}</Text>
+                <Text style={styles.assignmentSub}>{checkout.department || 'N/A'}</Text>
+              </View>
             </View>
-            <View style={styles.assignmentInfo}>
-              <Text style={styles.assignmentName}>John Doe</Text>
-              <Text style={styles.assignmentSub}>Engineering</Text>
+            <View style={styles.divider} />
+            {checkout.department && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Department</Text>
+                <Text style={styles.infoValue}>{checkout.department}</Text>
+              </View>
+            )}
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Since</Text>
+              <Text style={styles.infoValue}>{new Date(checkout.checked_out_at).toLocaleDateString()}</Text>
             </View>
+            {checkout.purpose && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Purpose</Text>
+                <Text style={styles.infoValue}>{checkout.purpose}</Text>
+              </View>
+            )}
           </View>
-          <View style={styles.divider} />
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Department</Text>
-            <Text style={styles.infoValue}>Engineering</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Since</Text>
-            <Text style={styles.infoValue}>Oct 18, 2023</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Purpose</Text>
-            <Text style={styles.infoValue}>Site Inspection</Text>
-          </View>
-        </View>
+        )}
       </ScrollView>
 
       <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={styles.checkInBtn}
-          activeOpacity={0.8}
-          onPress={() => router.push('/checkin-asset')}
-        >
-          <Text style={styles.checkInBtnText}>âœ“ Check In</Text>
-        </TouchableOpacity>
+        {asset.status === 'checked_out' ? (
+          <TouchableOpacity
+            style={styles.checkInBtn}
+            activeOpacity={0.8}
+            onPress={() => router.push({
+              pathname: '/checkin-asset',
+              params: { checkoutId: String(checkout?.id), assetName: asset.name, assetTag: asset.asset_tag },
+            })}
+          >
+            <Text style={styles.checkInBtnText}>âœ" Check In</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.checkInBtn}
+            activeOpacity={0.8}
+            onPress={() => router.push({
+              pathname: '/checkout-asset',
+              params: { assetId: String(asset.id), assetName: asset.name, assetTag: asset.asset_tag },
+            })}
+          >
+            <Text style={styles.checkInBtnText}>â†— Check Out</Text>
+          </TouchableOpacity>
+        )}
         <View style={styles.secondaryActions}>
           <TouchableOpacity
             style={styles.outlinedBtn}
             activeOpacity={0.7}
-            onPress={() => router.push('/checkout-asset')}
+            onPress={() => router.push({
+              pathname: '/checkin-asset',
+              params: { checkoutId: String(checkout?.id), assetName: asset.name, assetTag: asset.asset_tag },
+            })}
           >
-            <Text style={styles.outlinedBtnText}>â†— Check Out</Text>
+            <Text style={styles.outlinedBtnText}>âœ" Check In</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.outlinedBtn}
@@ -261,7 +356,6 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#e6f9e6',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
@@ -271,12 +365,10 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#22c55e',
   },
   statusText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#16a34a',
   },
   statsRow: {
     flexDirection: 'row',
@@ -303,7 +395,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#22c55e',
   },
   statChipIcon: {
     fontSize: 14,
@@ -397,6 +488,16 @@ const styles = StyleSheet.create({
     height: 0.5,
     backgroundColor: Colors.outlineVariant + '40',
     marginBottom: 4,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    color: Colors.error,
+    textAlign: 'center',
   },
   bottomBar: {
     position: 'absolute',

@@ -6,36 +6,74 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const CATEGORIES = [
-  { id: '1', name: 'IT Equipment', count: '412 Total Assets', status: 'Active', icon: 'ðŸ’»', color: Colors.primary },
-  { id: '2', name: 'Office Furniture', count: '1,208 Total Assets', status: 'Active', icon: 'ðŸª‘', color: Colors.secondary },
-  { id: '3', name: 'Vehicles', count: '45 Total Assets', status: 'Critical', icon: 'ðŸš›', color: Colors.tertiary },
-  { id: '4', name: 'Network Infrastructure', count: '88 Total Assets', status: 'Idle', icon: 'ðŸ“¡', color: Colors.primary },
-  { id: '5', name: 'Lab Equipment', count: '156 Total Assets', status: 'Active', icon: 'ðŸ”¬', color: Colors.secondary },
-];
+import { useFetch } from '@/hooks/useFetch';
+import { Category, PaginatedResponse } from '@/types/api';
 
 export default function CategoriesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
 
-  const filtered = CATEGORIES.filter(
+  const { data: categoriesData, loading, error } = useFetch<PaginatedResponse<Category>>({
+    endpoint: '/api/categories',
+  });
+
+  const categories = categoriesData?.data ?? [];
+
+  const filtered = categories.filter(
     (c) => c.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Active': return { bg: Colors.primary + '1A', text: Colors.primary };
-      case 'Critical': return { bg: Colors.errorContainer, text: Colors.onErrorContainer };
-      case 'Idle': return { bg: Colors.surfaceContainerHigh, text: Colors.outline };
-      default: return { bg: Colors.surfaceContainerHigh, text: Colors.outline };
-    }
-  };
+  if (loading) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.topBar}>
+          <TouchableOpacity style={styles.iconBtn}>
+            <View style={styles.menuIcon}>
+              <View style={styles.menuLine} />
+              <View style={styles.menuLine} />
+              <View style={styles.menuLine} />
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.topTitle}>ScanTrack</Text>
+          <TouchableOpacity style={styles.iconBtn}>
+            <View style={styles.notifDot} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.topBar}>
+          <TouchableOpacity style={styles.iconBtn}>
+            <View style={styles.menuIcon}>
+              <View style={styles.menuLine} />
+              <View style={styles.menuLine} />
+              <View style={styles.menuLine} />
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.topTitle}>ScanTrack</Text>
+          <TouchableOpacity style={styles.iconBtn}>
+            <View style={styles.notifDot} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -69,23 +107,23 @@ export default function CategoriesScreen() {
 
         <View style={styles.categoryList}>
           {filtered.map((cat) => {
-            const sc = getStatusColor(cat.status);
             return (
-              <TouchableOpacity key={cat.id} style={styles.categoryCard}>
+              <TouchableOpacity
+                key={cat.id}
+                style={styles.categoryCard}
+                onPress={() => {}}
+              >
                 <View style={styles.cardLeft}>
-                  <View style={[styles.cardIcon, { backgroundColor: cat.color + '1A' }]}>
-                    <Text style={styles.cardIconText}>{cat.icon}</Text>
+                  <View style={[styles.cardIcon, { backgroundColor: Colors.primary + '1A' }]}>
+                    <Text style={styles.cardIconText}>{cat.icon || 'ðŸ“¦'}</Text>
                   </View>
                   <View>
                     <Text style={styles.cardName}>{cat.name}</Text>
-                    <Text style={styles.cardCount}>{cat.count}</Text>
+                    <Text style={styles.cardCount}>{cat.assets_count ?? 0} Total Assets</Text>
                   </View>
                 </View>
                 <View style={styles.cardRight}>
                   <Text style={styles.chevron}>â€º</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
-                    <Text style={[styles.statusText, { color: sc.text }]}>{cat.status}</Text>
-                  </View>
                 </View>
               </TouchableOpacity>
             );
@@ -136,6 +174,8 @@ const styles = StyleSheet.create({
   chevron: { fontSize: 20, color: Colors.outlineVariant },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 },
   statusText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.05 },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  errorText: { fontSize: 16, color: Colors.error, textAlign: 'center' },
   fab: {
     position: 'absolute', right: 16, bottom: 100, width: 56, height: 56,
     borderRadius: 16, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center',

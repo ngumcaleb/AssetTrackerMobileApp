@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,13 +7,17 @@ import {
   TouchableOpacity,
   TextInput,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFetch } from '@/hooks/useFetch';
+import { useAuth } from '@/context/AuthContext';
+import { PaginatedResponse, ActivityLog } from '@/types/api';
 
 type ActivityType = 'check-in' | 'check-out' | 'maintenance' | 'registration';
 
-interface ActivityItem {
+interface DisplayActivity {
   id: string;
   type: ActivityType;
   title: string;
@@ -22,89 +26,100 @@ interface ActivityItem {
   assetTag: string;
 }
 
-const filterChips = ['All', 'Check-Ins', 'Check-Outs', 'Maintenance'];
+const apiTypeToLocalType: Record<string, ActivityType> = {
+  return: 'check-in',
+  checkout: 'check-out',
+  asset_created: 'registration',
+  asset_archived: 'maintenance',
+  asset_restored: 'check-in',
+  asset_deleted: 'maintenance',
+};
 
-const todayActivities: ActivityItem[] = [
-  {
-    id: '1',
-    type: 'check-in',
-    title: 'Asset Checked In',
-    time: '2:30 PM',
-    description: 'Laptop returned by John Doe',
-    assetTag: 'LPT-001',
-  },
-  {
-    id: '2',
-    type: 'check-out',
-    title: 'Asset Checked Out',
-    time: '11:15 AM',
-    description: 'Monitor assigned to Sarah Lee',
-    assetTag: 'MON-042',
-  },
-  {
-    id: '3',
-    type: 'maintenance',
-    title: 'Maintenance Scheduled',
-    time: '9:00 AM',
-    description: 'Printer sent for repair',
-    assetTag: 'PTR-018',
-  },
-];
+const activityTypeLabels: Record<string, string> = {
+  return: 'Return',
+  checkout: 'Checkout',
+  asset_created: 'Asset Created',
+  asset_archived: 'Asset Archived',
+  asset_restored: 'Asset Restored',
+  asset_deleted: 'Asset Deleted',
+};
 
-const yesterdayActivities: ActivityItem[] = [
-  {
-    id: '4',
-    type: 'registration',
-    title: 'Asset Registered',
-    time: '4:45 PM',
-    description: 'New server added to inventory',
-    assetTag: 'SRV-007',
-  },
-  {
-    id: '5',
-    type: 'check-out',
-    title: 'Asset Checked Out',
-    time: '1:20 PM',
-    description: 'Keyboard issued to Mark Wilson',
-    assetTag: 'KEY-093',
-  },
-];
-
-const weekActivities: ActivityItem[] = [
-  {
-    id: '6',
-    type: 'maintenance',
-    title: 'Maintenance Completed',
-    time: 'Mon 3:10 PM',
-    description: 'Desktop cleaned and updated',
-    assetTag: 'DST-021',
-  },
-  {
-    id: '7',
-    type: 'registration',
-    title: 'Asset Registered',
-    time: 'Mon 10:00 AM',
-    description: '5 monitors added in bulk',
-    assetTag: 'MON-050',
-  },
-  {
-    id: '8',
-    type: 'check-in',
-    title: 'Asset Checked In',
-    time: 'Sun 2:00 PM',
-    description: 'Tablet returned by intern',
-    assetTag: 'TAB-012',
-  },
+const filterChips = [
+  { label: 'All', value: '' },
+  { label: 'Check-Ins', value: 'return' },
+  { label: 'Check-Outs', value: 'checkout' },
+  { label: 'Maintenance', value: 'asset_archived' },
 ];
 
 const typeConfig: Record<ActivityType, { bg: string; icon: string }> = {
   'check-in': { bg: Colors.secondaryContainer, icon: 'â†™' },
   'check-out': { bg: Colors.errorContainer, icon: 'â†—' },
-  maintenance: { bg: Colors.tertiaryContainer, icon: 'ðŸ”§' },
+  maintenance: { bg: Colors.tertiaryContainer, icon: 'ðŸ"§' },
   registration: { bg: Colors.surfaceContainerHighest, icon: '+' },
 };
 
-function ActivityCard({ item }: { item: ActivityItem }) {
+function startOfDay(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function formatDateGroup(iso: string): string {
+  const now = startOfDay(new Date());
+  const date = startOfDay(new Date(iso));
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays <= 7) return 'This Week';
+  return 'Older';
+}
+
+function formatTime(iso: string): string {
+  const date = new Date(iso);
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
+function getInitials(name: string | null | undefined): string {
+  if (!name) return 'U';
+  return name
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+function groupActivities(items: DisplayActivity[]): { title: string; data: DisplayActivity[] }[] {
+  const groups: Record<string, DisplayActivity[]> = {};
+  const groupOrder: string[] = [];
+
+  for (const item of items) {
+    const group = formatDateGroup(item.time);
+    if (!groups[group]) {
+      groups[group] = [];
+      groupOrder.push(group);
+    }
+    groups[group].push(item);
+  }
+
+  const orderedLabels = ['Today', 'Yesterday', 'This Week', 'Older'];
+  return orderedLabels
+    .filter((label) => groups[label]?.length)
+    .map((label) => ({ title: label, data: groups[label] }));
+}
+
+function ActivityCard({ item }: { item: DisplayActivity }) {
   const config = typeConfig[item.type];
   return (
     <View style={styles.activityCard}>
@@ -129,8 +144,44 @@ function SectionHeader({ title }: { title: string }) {
   return <Text style={styles.sectionHeader}>{title}</Text>;
 }
 
+function EmptyState() {
+  return (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.emptyIcon}>ðŸ“‹</Text>
+      <Text style={styles.emptyText}>No activity found</Text>
+    </View>
+  );
+}
+
 export default function ActivityLogScreen() {
-  const [activeFilter, setActiveFilter] = useState('All');
+  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const [activeFilter, setActiveFilter] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const debouncedSearch = useDebounce(searchText, 400);
+
+  const { data, loading, error } = useFetch<PaginatedResponse<ActivityLog>>({
+    endpoint: '/api/activity',
+    params: {
+      type: activeFilter || undefined,
+      search: debouncedSearch || undefined,
+    },
+  });
+
+  const activities: DisplayActivity[] = (data?.data ?? []).map((log) => {
+    const localType = apiTypeToLocalType[log.type] ?? 'registration';
+    const label = activityTypeLabels[log.type] ?? log.type;
+    return {
+      id: String(log.id),
+      type: localType,
+      title: label,
+      time: log.created_at,
+      description: log.description,
+      assetTag: log.asset?.asset_tag ?? 'N/A',
+    };
+  });
+
+  const grouped = groupActivities(activities);
 
   return (
     <View style={[styles.safeArea, { paddingTop: insets.top }]}>
@@ -143,10 +194,10 @@ export default function ActivityLogScreen() {
         <Text style={styles.title}>ScanTrack</Text>
         <View style={styles.topBarRight}>
           <TouchableOpacity style={styles.iconBtn}>
-            <Text style={styles.bellIcon}>ðŸ””</Text>
+            <Text style={styles.bellIcon}>ðŸ""</Text>
           </TouchableOpacity>
           <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>JD</Text>
+            <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
           </View>
         </View>
       </View>
@@ -159,11 +210,13 @@ export default function ActivityLogScreen() {
         <Text style={styles.screenTitle}>Activity Log</Text>
 
         <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>ðŸ”</Text>
+          <Text style={styles.searchIcon}>ðŸ"</Text>
           <TextInput
             style={styles.searchInput}
             placeholder="Search activities..."
             placeholderTextColor={Colors.outline}
+            value={searchText}
+            onChangeText={setSearchText}
           />
         </View>
 
@@ -174,51 +227,45 @@ export default function ActivityLogScreen() {
         >
           {filterChips.map((chip) => (
             <TouchableOpacity
-              key={chip}
+              key={chip.value || 'all'}
               style={[
                 styles.chip,
-                activeFilter === chip && styles.chipActive,
+                activeFilter === chip.value && styles.chipActive,
               ]}
-              onPress={() => setActiveFilter(chip)}
+              onPress={() => setActiveFilter(chip.value)}
             >
               <Text
                 style={[
                   styles.chipText,
-                  activeFilter === chip && styles.chipTextActive,
+                  activeFilter === chip.value && styles.chipTextActive,
                 ]}
               >
-                {chip}
+                {chip.label}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
-        <SectionHeader title="Today" />
-        {todayActivities.map((item) => (
-          <ActivityCard key={item.id} item={item} />
-        ))}
-
-        <SectionHeader title="Yesterday" />
-        {yesterdayActivities.map((item) => (
-          <ActivityCard key={item.id} item={item} />
-        ))}
-
-        <SectionHeader title="This Week" />
-        {weekActivities.map((item) => (
-          <ActivityCard key={item.id} item={item} />
-        ))}
-
-        <View style={styles.healthCard}>
-          <View style={styles.healthLeft}>
-            <Text style={styles.healthLabel}>System Health</Text>
-            <Text style={styles.healthValue}>99.8%</Text>
-            <Text style={styles.healthSub}>All systems operational</Text>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.primary} />
           </View>
-          <View style={styles.healthIndicator}>
-            <View style={styles.healthDot} />
-            <Text style={styles.healthStatus}>Healthy</Text>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
           </View>
-        </View>
+        ) : grouped.length > 0 ? (
+          grouped.map((group) => (
+            <View key={group.title}>
+              <SectionHeader title={group.title} />
+              {group.data.map((item) => (
+                <ActivityCard key={item.id} item={item} />
+              ))}
+            </View>
+          ))
+        ) : (
+          <EmptyState />
+        )}
       </ScrollView>
     </View>
   );
@@ -401,52 +448,30 @@ const styles = StyleSheet.create({
     color: Colors.onSurfaceVariant,
     letterSpacing: 0.5,
   },
-  healthCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  loadingContainer: {
     alignItems: 'center',
-    backgroundColor: Colors.surfaceContainerLowest,
-    borderRadius: 20,
-    padding: 20,
-    marginTop: 12,
-    shadowColor: Colors.onSurface,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    paddingVertical: 48,
   },
-  healthLeft: {
-    flex: 1,
-  },
-  healthLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.onSurfaceVariant,
-    marginBottom: 4,
-  },
-  healthValue: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: Colors.primary,
-  },
-  healthSub: {
-    fontSize: 11,
-    color: Colors.outline,
-    marginTop: 2,
-  },
-  healthIndicator: {
+  errorContainer: {
     alignItems: 'center',
-    gap: 4,
+    paddingVertical: 48,
+    paddingHorizontal: 16,
   },
-  healthDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#22c55e',
+  errorText: {
+    fontSize: 14,
+    color: Colors.error,
+    textAlign: 'center',
   },
-  healthStatus: {
-    fontSize: 11,
-    fontWeight: '600',
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  emptyIcon: {
+    fontSize: 36,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
     color: Colors.onSurfaceVariant,
   },
 });

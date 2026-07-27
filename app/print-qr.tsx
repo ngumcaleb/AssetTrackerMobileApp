@@ -6,23 +6,37 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+function formatAssetDate(dateStr: string | undefined): string {
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 export default function PrintQRScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { name, asset_tag, created_at } = useLocalSearchParams<{
+    name?: string;
+    asset_tag?: string;
+    created_at?: string;
+  }>();
+
+  const displayName = name ?? 'Asset';
+  const displayTag = asset_tag ?? 'N/A';
+  const displayDate = formatAssetDate(created_at);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backArrow}>â†</Text>
+          <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
         <Text style={styles.topTitle}>Print QR Label</Text>
         <TouchableOpacity style={styles.iconBtn}>
-          <Text style={styles.settingsIcon}>âš™</Text>
+          <Text style={styles.settingsIcon}>⚙</Text>
         </TouchableOpacity>
       </View>
 
@@ -41,34 +55,34 @@ export default function PrintQRScreen() {
               ))}
             </View>
           </View>
-          <Text style={styles.assetName}>High-Precision Laser Welder</Text>
-          <Text style={styles.assetId}>ST-8829-XL</Text>
-          <Text style={styles.assetDate}>Registered Oct 24, 2023</Text>
+          <Text style={styles.assetName}>{displayName}</Text>
+          <Text style={styles.assetId}>{displayTag}</Text>
+          {displayDate ? <Text style={styles.assetDate}>Registered {displayDate}</Text> : null}
         </View>
 
         <View style={styles.printOptions}>
           <Text style={styles.sectionTitle}>Print Options</Text>
           <TouchableOpacity style={styles.optionRow}>
             <Text style={styles.optionLabel}>Label Size</Text>
-            <Text style={styles.optionValue}>Standard (2" Ã— 1")</Text>
-            <Text style={styles.chevron}>â€º</Text>
+            <Text style={styles.optionValue}>Standard (2" × 1")</Text>
+            <Text style={styles.chevron}>›</Text>
           </TouchableOpacity>
           <View style={styles.divider} />
           <TouchableOpacity style={styles.optionRow}>
             <Text style={styles.optionLabel}>Printer</Text>
             <Text style={styles.optionValue}>Zebra ZD421</Text>
-            <Text style={styles.chevron}>â€º</Text>
+            <Text style={styles.chevron}>›</Text>
           </TouchableOpacity>
           <View style={styles.divider} />
           <TouchableOpacity style={styles.optionRow}>
             <Text style={styles.optionLabel}>Copies</Text>
             <Text style={styles.optionValue}>1</Text>
-            <Text style={styles.chevron}>â€º</Text>
+            <Text style={styles.chevron}>›</Text>
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={styles.printBtn}>
-          <Text style={styles.printBtnText}>ðŸ–¨ Print Label</Text>
+          <Text style={styles.printBtnText}>🖨 Print Label</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>

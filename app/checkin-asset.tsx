@@ -6,26 +6,46 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useMutation } from '@/hooks/useFetch';
 
 const CONDITIONS = ['Excellent', 'Good', 'Fair', 'Poor'];
 
 export default function CheckinAssetScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{
+    checkoutId?: string;
+    assetName?: string;
+    assetTag?: string;
+  }>();
+
   const [condition, setCondition] = useState('Excellent');
   const [notes, setNotes] = useState('');
-  const [processing, setProcessing] = useState(false);
 
-  const handleConfirm = () => {
-    setProcessing(true);
-    setTimeout(() => {
-      setProcessing(false);
+  const { execute: returnAsset, loading: processing, error: submitError } = useMutation(
+    'POST',
+    `/api/checkouts/${params.checkoutId}/return`
+  );
+
+  const handleConfirm = async () => {
+    if (!params.checkoutId) {
+      Alert.alert('Error', 'No checkout specified for return.');
+      return;
+    }
+    try {
+      await returnAsset({
+        return_notes: `[${condition}] ${notes}`.trim(),
+      });
       router.back();
-    }, 1500);
+    } catch (e: any) {
+      Alert.alert('Error', submitError || 'Failed to check in asset. Please try again.');
+    }
   };
 
   return (
@@ -47,8 +67,8 @@ export default function CheckinAssetScreen() {
           </View>
           <View style={styles.assetInfo}>
             <Text style={styles.assetLabel}>Active Rental</Text>
-            <Text style={styles.assetName}>Industrial Survey Drone Pro</Text>
-            <Text style={styles.assetId}>ID: ST-8829-XQ</Text>
+            <Text style={styles.assetName}>{params.assetName || 'Unknown Asset'}</Text>
+            <Text style={styles.assetId}>ID: {params.assetTag || 'N/A'}</Text>
           </View>
         </View>
 
@@ -112,14 +132,19 @@ export default function CheckinAssetScreen() {
       </ScrollView>
 
       <View style={styles.bottomBar}>
+        {submitError && (
+          <Text style={styles.errorText}>{submitError}</Text>
+        )}
         <TouchableOpacity
           style={[styles.confirmBtn, processing && { opacity: 0.8 }]}
           onPress={handleConfirm}
           disabled={processing}
         >
-          <Text style={styles.confirmBtnText}>
-            {processing ? 'â³ Processing...' : 'âœ“ Confirm Check-In'}
-          </Text>
+          {processing ? (
+            <ActivityIndicator color={Colors.onPrimary} />
+          ) : (
+            <Text style={styles.confirmBtnText}>âœ“ Confirm Check-In</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -235,6 +260,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.outlineVariant + '4D',
   },
   photoHint: { fontSize: 14, color: Colors.onSurfaceVariant, fontStyle: 'italic', marginTop: 8 },
+  errorText: { color: Colors.error, fontSize: 14, textAlign: 'center', marginBottom: 8 },
   bottomBar: {
     position: 'absolute',
     bottom: 0,

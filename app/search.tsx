@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,31 +6,59 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFetch } from '@/hooks/useFetch';
+import type { PaginatedResponse, Asset } from '@/types/api';
 
-const MOCK_RESULTS = [
-  { id: '1', name: 'Industrial Power Gen-X', serial: 'IND-990-2104', status: 'Active', location: 'North Wing, Floor 2', lastChecked: 'Checked 2h ago' },
-  { id: '2', name: 'Industrial Hydraulic Press', serial: 'IND-042-9988', status: 'Maintenance', location: 'Main Lab', assignee: 'Marcus V.' },
-  { id: '3', name: 'Industrial Filter Unit V8', serial: 'IND-881-3342', status: 'Standby', location: 'Roof Level 4', extra: '98% Efficiency' },
-];
-
-const FILTERS = ['All Results', 'Assets', 'Users', 'Locations'];
+const FILTERS = ['All Results', 'Assets'];
 
 export default function SearchScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [query, setQuery] = useState('Industrial');
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All Results');
+  const debounceTimer = useRef<ReturnType<typeof setTimeout>>(null);
+
+  useEffect(() => {
+    debounceTimer.current = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, [query]);
+
+  const searchParams: Record<string, string | number | undefined> = {};
+  if (debouncedQuery.trim()) searchParams.search = debouncedQuery.trim();
+  if (activeFilter === 'Assets') searchParams.status = 'active';
+
+  const { data, loading } = useFetch<PaginatedResponse<Asset>>({
+    endpoint: '/api/assets',
+    params: searchParams,
+  });
+
+  const results = data?.data ?? [];
 
   const getStatusStyle = (status: string) => {
     switch (status) {
-      case 'Active': return { bg: '#E6F4EA', text: '#1E8E3E' };
-      case 'Maintenance': return { bg: '#FCE8E6', text: '#D93025' };
-      case 'Standby': return { bg: '#E8F0FE', text: '#1A73E8' };
+      case 'active': return { bg: '#E6F4EA', text: '#1E8E3E' };
+      case 'checked_out': return { bg: '#FCE8E6', text: '#D93025' };
+      case 'archived': return { bg: '#E8F0FE', text: '#1A73E8' };
       default: return { bg: Colors.surfaceContainerHigh, text: Colors.outline };
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'active': return 'Active';
+      case 'checked_out': return 'Checked Out';
+      case 'archived': return 'Archived';
+      default: return status;
     }
   };
 
@@ -53,7 +81,7 @@ export default function SearchScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.searchContainer}>
           <View style={styles.searchBar}>
-            <Text style={styles.searchIcon}>ðŸ”</Text>
+            <Text style={styles.searchIcon}>🔍</Text>
             <TextInput
               style={styles.searchInput}
               placeholder="Search assets, IDs, or users..."
@@ -62,7 +90,7 @@ export default function SearchScreen() {
               onChangeText={setQuery}
             />
             <TouchableOpacity onPress={() => setQuery('')}>
-              <Text style={styles.clearBtn}>âœ•</Text>
+              <Text style={styles.clearBtn}>✖</Text>
             </TouchableOpacity>
           </View>
 
@@ -82,34 +110,44 @@ export default function SearchScreen() {
         </View>
 
         <Text style={styles.resultCount}>
-          Showing {MOCK_RESULTS.length} results for "<Text style={{ fontWeight: '700' }}>{query}</Text>"
+          Showing {results.length} results for "<Text style={{ fontWeight: '700' }}>{debouncedQuery || 'all assets'}</Text>"
         </Text>
 
-        {MOCK_RESULTS.map((item) => {
-          const ss = getStatusStyle(item.status);
-          return (
-            <TouchableOpacity key={item.id} style={styles.resultCard}>
-              <View style={styles.resultImage}>
-                <Text style={styles.resultImageIcon}>ðŸ“¦</Text>
-              </View>
-              <View style={styles.resultInfo}>
-                <View style={styles.resultHeader}>
-                  <Text style={styles.resultName}>{item.name}</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: ss.bg }]}>
-                    <Text style={[styles.statusText, { color: ss.text }]}>{item.status}</Text>
+        {loading ? (
+          <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 32 }} />
+        ) : results.length === 0 ? (
+          <View style={{ alignItems: 'center', marginTop: 48 }}>
+            <Text style={{ fontSize: 16, color: Colors.onSurfaceVariant }}>No results found</Text>
+          </View>
+        ) : (
+          results.map((item) => {
+            const ss = getStatusStyle(item.status);
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.resultCard}
+                onPress={() => router.push({ pathname: '/asset-detail', params: { id: String(item.id) } })}
+              >
+                <View style={styles.resultImage}>
+                  <Text style={styles.resultImageIcon}>📦</Text>
+                </View>
+                <View style={styles.resultInfo}>
+                  <View style={styles.resultHeader}>
+                    <Text style={styles.resultName}>{item.name}</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: ss.bg }]}>
+                      <Text style={[styles.statusText, { color: ss.text }]}>{getStatusLabel(item.status)}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.resultSerial}>SN: {item.serial}</Text>
+                  <View style={styles.resultMeta}>
+                    <Text style={styles.metaItem}>📍 {item.location ?? 'No location'}</Text>
+                    <Text style={styles.metaItem}>🏷 {item.asset_tag}</Text>
                   </View>
                 </View>
-                <Text style={styles.resultSerial}>SN: {item.serial}</Text>
-                <View style={styles.resultMeta}>
-                  <Text style={styles.metaItem}>ðŸ“ {item.location}</Text>
-                  {item.lastChecked && <Text style={styles.metaItem}>ðŸ• {item.lastChecked}</Text>}
-                  {item.assignee && <Text style={styles.metaItem}>ðŸ‘¤ {item.assignee}</Text>}
-                  {item.extra && <Text style={styles.metaItem}>ðŸ“ˆ {item.extra}</Text>}
-                </View>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+              </TouchableOpacity>
+            );
+          })
+        )}
       </ScrollView>
     </View>
   );

@@ -6,24 +6,21 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const CATEGORIES = [
-  'Industrial Equipment',
-  'IT Infrastructure',
-  'Fleet Vehicles',
-  'Office Furniture',
-  'Manufacturing Tools',
-];
+import { useFetch, useMutation } from '@/hooks/useFetch';
+import { Category, PaginatedResponse } from '@/types/api';
 
 export default function RegisterAssetScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [categoryLabel, setCategoryLabel] = useState('Select category');
   const [brand, setBrand] = useState('');
   const [model, setModel] = useState('');
   const [serial, setSerial] = useState('');
@@ -32,14 +29,36 @@ export default function RegisterAssetScreen() {
   const [supplier, setSupplier] = useState('');
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
-  const [processing, setProcessing] = useState(false);
 
-  const handleSubmit = () => {
-    setProcessing(true);
-    setTimeout(() => {
-      setProcessing(false);
+  const { data: categoriesData, loading: categoriesLoading } = useFetch<PaginatedResponse<Category>>({
+    endpoint: '/api/categories',
+  });
+
+  const categories = categoriesData?.data ?? [];
+
+  const { execute: createAsset, loading: submitting, error: submitError } = useMutation(
+    'POST',
+    '/api/assets'
+  );
+
+  const handleSubmit = async () => {
+    try {
+      await createAsset({
+        name,
+        serial,
+        category_id: categoryId,
+        brand,
+        model,
+        purchase_date: purchaseDate || undefined,
+        purchase_price: price ? parseFloat(price) : undefined,
+        supplier,
+        location,
+        description,
+      });
       router.push('/registration-success');
-    }, 1500);
+    } catch (e: any) {
+      Alert.alert('Error', submitError || 'Failed to register asset. Please try again.');
+    }
   };
 
   return (
@@ -78,16 +97,27 @@ export default function RegisterAssetScreen() {
           <View style={styles.gridRow}>
             <View style={styles.halfField}>
               <Text style={styles.fieldLabel}>Category</Text>
-              <View style={styles.selectBox}>
-                <Text style={styles.selectText}>{category}</Text>
+              <TouchableOpacity
+                style={styles.selectBox}
+                onPress={() => {
+                  if (categories.length > 0) {
+                    Alert.alert(
+                      'Select Category',
+                      '',
+                      categories.map((c) => ({
+                        text: c.name,
+                        onPress: () => {
+                          setCategoryId(c.id);
+                          setCategoryLabel(c.name);
+                        },
+                      }))
+                    );
+                  }
+                }}
+              >
+                <Text style={styles.selectText}>{categoryLabel}</Text>
                 <Text style={styles.selectArrow}>â–¾</Text>
-              </View>
-            </View>
-            <View style={styles.halfField}>
-              <Text style={styles.fieldLabel}>Asset ID</Text>
-              <View style={[styles.input, styles.readonlyInput]}>
-                <Text style={styles.readonlyText}>AST-2024-0892</Text>
-              </View>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -189,14 +219,19 @@ export default function RegisterAssetScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.submitBtn, processing && { opacity: 0.8 }]}
+          style={[styles.submitBtn, (submitting || categoriesLoading) && { opacity: 0.8 }]}
           onPress={handleSubmit}
-          disabled={processing}
+          disabled={submitting || categoriesLoading}
         >
-          <Text style={styles.submitBtnText}>
-            {processing ? 'â³ Registering...' : 'ðŸ“¦ Register Asset'}
-          </Text>
+          {submitting ? (
+            <ActivityIndicator color={Colors.onPrimary} />
+          ) : (
+            <Text style={styles.submitBtnText}>ðŸ“¦ Register Asset</Text>
+          )}
         </TouchableOpacity>
+        {submitError && (
+          <Text style={styles.errorText}>{submitError}</Text>
+        )}
         <Text style={styles.disclaimer}>
           By registering, this asset will be visible in the global inventory and tracking dashboard.
         </Text>
@@ -262,5 +297,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2, shadowRadius: 20, elevation: 8,
   },
   submitBtnText: { color: Colors.onPrimary, fontSize: 18, fontWeight: '600' },
+  errorText: { color: Colors.error, fontSize: 14, textAlign: 'center', marginBottom: 12 },
   disclaimer: { fontSize: 14, color: Colors.outline, textAlign: 'center' },
 });
