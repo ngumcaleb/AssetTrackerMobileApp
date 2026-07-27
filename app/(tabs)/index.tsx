@@ -1,98 +1,214 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  StatusBar,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { Colors } from '@/constants/Colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const stats = [
+  { label: 'Total Assets', value: '128' },
+  { label: 'Damaged', value: '42' },
+  { label: 'Expired', value: '86' },
+];
 
-export default function HomeScreen() {
+const actions = [
+  { label: 'Register Asset', route: '/register-asset' as const, icon: '+' },
+  { label: 'Check Out', route: '/checkout-asset' as const, icon: 'â†—' },
+  { label: 'Check In', route: '/checkin-asset' as const, icon: 'â†™' },
+  { label: 'Scan QR', route: '/search' as const, icon: 'âŠž' },
+];
+
+export default function DashboardScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.iconBtn}>
+          <Text style={styles.menuIcon}>â˜°</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>ScanTrack</Text>
+        <TouchableOpacity style={styles.iconBtn}>
+          <Text style={styles.bellIcon}>ðŸ””</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.greeting}>Dashboard</Text>
+        <Text style={styles.subGreeting}>Overview of your assets</Text>
+
+        <View style={styles.statsRow}>
+          {stats.map((stat) => (
+            <View key={stat.label} style={styles.statCard}>
+              <Text style={styles.statValue}>{stat.value}</Text>
+              <Text style={styles.statLabel}>{stat.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
+
+        <View style={styles.actionsGrid}>
+          {actions.map((action) => (
+            <TouchableOpacity
+              key={action.label}
+              style={styles.actionCard}
+              activeOpacity={0.7}
+              onPress={() => router.push(action.route)}
+            >
+              <View style={styles.actionIconCircle}>
+                <Text style={styles.actionIcon}>{action.icon}</Text>
+              </View>
+              <Text style={styles.actionLabel}>{action.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  safeArea: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.outlineVariant,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  menuIcon: {
+    fontSize: 22,
+    color: Colors.onSurface,
+  },
+  bellIcon: {
+    fontSize: 20,
+    color: Colors.onSurface,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.primary,
+    letterSpacing: 0.5,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+  },
+  greeting: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: Colors.onBackground,
+    marginTop: 8,
+  },
+  subGreeting: {
+    fontSize: 14,
+    color: Colors.onSurfaceVariant,
+    marginTop: 4,
+    marginBottom: 20,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 28,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    shadowColor: Colors.onSurface,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statValue: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: Colors.onSurfaceVariant,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.onBackground,
+    marginBottom: 14,
+  },
+  actionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  actionCard: {
+    width: '47%',
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: 20,
+    paddingVertical: 22,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    shadowColor: Colors.onSurface,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  actionIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: Colors.primaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  actionIcon: {
+    fontSize: 22,
+    color: Colors.onPrimaryContainer,
+    fontWeight: '600',
+  },
+  actionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.onSurface,
+    textAlign: 'center',
   },
 });

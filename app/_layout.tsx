@@ -1,24 +1,30 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+import { AuthProvider } from '@/context/AuthContext';
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+    <AuthProvider>
+      <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
+        <Stack.Screen name="index" />
+        <Stack.Screen name="login" />
+        <Stack.Screen name="sign-up" />
+        <Stack.Screen name="forgot-password" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="register-asset" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="checkout-asset" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="checkin-asset" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="archived-assets" />
+        <Stack.Screen name="asset-history" />
+        <Stack.Screen name="asset-detail" />
+        <Stack.Screen name="categories" />
+        <Stack.Screen name="profile" />
+        <Stack.Screen name="search" />
+        <Stack.Screen name="notifications" />
+        <Stack.Screen name="registration-success" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="print-qr" />
       </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+      <StatusBar style="dark" />
+    </AuthProvider>
   );
 }
