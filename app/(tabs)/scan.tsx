@@ -103,13 +103,12 @@ export default function ScanScreen() {
   const cameraFacing = isWeb ? 'front' : 'back';
 
   return (
-    <View style={styles.screen}>
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* ── App Bar ─────────────────────────────────────────── */}
       <View style={styles.topBar}>
-        <View>
+        <View style={styles.topBarTitle}>
           <Text style={styles.title}>Scan</Text>
-          <Text style={styles.subtitle}>Quick asset lookup</Text>
+          <Text style={styles.subtitle} numberOfLines={1}>Quick asset lookup</Text>
         </View>
         <View style={styles.topBarRight}>
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/notifications')}>
@@ -259,7 +258,7 @@ export default function ScanScreen() {
         </View>
 
         {/* ── Recent Activity ───────────────────────────────── */}
-        <View style={styles.sectionHeaderRow}>
+        <View style={[styles.sectionHeaderRow, styles.recentHeaderRow]}>
           <Text style={styles.recentTitle}>Recent Activity</Text>
           <TouchableOpacity onPress={() => router.push('/(tabs)/activity')} activeOpacity={0.7}>
             <Text style={styles.link}>View all</Text>
@@ -283,9 +282,9 @@ export default function ScanScreen() {
             <View style={styles.recentBody}>
               <Text style={styles.recentText} numberOfLines={2}>{log.description}</Text>
               <View style={styles.recentMeta}>
-                <Text style={styles.recentSub}>{log.asset?.asset_tag ?? log.type}</Text>
+                <Text style={styles.recentTag} numberOfLines={1}>{log.asset?.asset_tag ?? log.type}</Text>
                 <View style={styles.metaDot} />
-                <Text style={styles.recentSub}>{formatTimeAgo(log.created_at)}</Text>
+                <Text style={styles.recentSub} numberOfLines={1}>{formatTimeAgo(log.created_at)}</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={17} color="#cbd5e1" />
@@ -297,7 +296,6 @@ export default function ScanScreen() {
           </View>
         ) : null}
       </ScrollView>
-      </View>
     </View>
   );
 }
@@ -323,21 +321,10 @@ function activityIcon(type?: string): IoniconName {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#f2eeee',
-    width: '100%',
-    alignItems: 'center',
-  },
   container: {
     flex: 1,
     width: '100%',
-    maxWidth: 560,
-    alignSelf: 'center',
     backgroundColor: Colors.background,
-    ...Platform.select({
-      web: { boxShadow: '0 0 0 1px #ece5e5, 0 10px 40px rgba(15, 23, 42, 0.08)' },
-    }),
   },
 
   // ── App Bar ───────────────────────────────────────────────
@@ -358,6 +345,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 20, fontWeight: '800', color: Colors.primary, letterSpacing: -0.3 },
   subtitle: { fontSize: 12, color: '#94a3b8', marginTop: 1 },
+  topBarTitle: { flex: 1, marginRight: 8 },
   topBarRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   iconBtn: {
     width: 38,
@@ -403,7 +391,9 @@ const styles = StyleSheet.create({
 
   // ── Camera Card ───────────────────────────────────────────
   cameraWrap: {
-    height: 340,
+    aspectRatio: 1.15,
+    minHeight: 300,
+    maxHeight: 400,
     marginHorizontal: 16,
     marginTop: -24,
     borderRadius: 28,
@@ -524,6 +514,8 @@ const styles = StyleSheet.create({
   },
   sectionHeaderRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 6,
@@ -563,6 +555,7 @@ const styles = StyleSheet.create({
 
   // ── Recent Activity ───────────────────────────────────────
   recentTitle: { fontSize: 16, fontWeight: '800', color: '#0f172a', letterSpacing: -0.2 },
+  recentHeaderRow: { paddingHorizontal: 16, marginBottom: 4 },
   link: { fontSize: 13, fontWeight: '700', color: Colors.primary },
   recentCard: {
     flexDirection: 'row',
@@ -585,7 +578,8 @@ const styles = StyleSheet.create({
   },
   recentBody: { flex: 1 },
   recentText: { fontSize: 13.5, fontWeight: '600', color: '#0f172a', lineHeight: 18 },
-  recentMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
+  recentMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 3 },
+  recentTag: { fontSize: 11.5, color: '#94a3b8', fontVariant: ['tabular-nums'], flexShrink: 1 },
   recentSub: { fontSize: 11.5, color: '#94a3b8', fontVariant: ['tabular-nums'] },
   metaDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#cbd5e1' },
   emptyRecent: { marginTop: 14, alignItems: 'center' },

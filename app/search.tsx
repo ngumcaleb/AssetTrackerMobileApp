@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,21 +7,38 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Image,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/Colors';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFetch } from '@/hooks/useFetch';
+import { statusMeta } from '@/utils/format';
+import { mediaSource } from '@/utils/media';
 import type { PaginatedResponse, Asset } from '@/types/api';
 
-const FILTERS = ['All Results', 'Assets'];
+const BRAND       = '#800020';
+const BRAND_LIGHT = '#fde6e6';
+
+const FILTERS = [
+  { label: 'All Results', value: '' },
+  { label: 'Assets Only', value: 'assets' },
+];
+
+const softShadow = Platform.select({
+  ios:     { shadowColor: '#0f172a', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
+  android: { elevation: 2 },
+  web:     { boxShadow: '0 2px 14px rgba(15, 23, 42, 0.07)' },
+});
 
 export default function SearchScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState('All Results');
+  const [activeFilter, setActiveFilter] = useState('');
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
   useEffect(() => {
@@ -35,7 +52,7 @@ export default function SearchScreen() {
 
   const searchParams: Record<string, string | number | undefined> = {};
   if (debouncedQuery.trim()) searchParams.search = debouncedQuery.trim();
-  if (activeFilter === 'Assets') searchParams.status = 'active';
+  if (activeFilter === 'assets') searchParams.status = 'active';
 
   const { data, loading } = useFetch<PaginatedResponse<Asset>>({
     endpoint: '/api/assets',
@@ -44,102 +61,156 @@ export default function SearchScreen() {
 
   const results = data?.data ?? [];
 
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'active': return { bg: '#E6F4EA', text: '#1E8E3E' };
-      case 'checked_out': return { bg: '#FCE8E6', text: '#D93025' };
-      case 'archived': return { bg: '#E8F0FE', text: '#1A73E8' };
-      default: return { bg: Colors.surfaceContainerHigh, text: Colors.outline };
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'active': return 'Active';
-      case 'checked_out': return 'Checked Out';
-      case 'archived': return 'Archived';
-      default: return status;
-    }
-  };
-
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
+      {/* ── App Bar ────────────────────────────────────────── */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
-          <Text style={{ fontSize: 22, color: Colors.onSurface }}>←</Text>
+        <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={22} color="#1e293b" />
         </TouchableOpacity>
         <Text style={styles.topTitle}>Search</Text>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/notifications')}>
-          <Text style={{ fontSize: 18 }}>🔔</Text>
+        <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7} onPress={() => router.push('/notifications')}>
+          <Ionicons name="notifications-outline" size={20} color="#1e293b" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.searchContainer}>
-          <View style={styles.searchBar}>
-            <Text style={styles.searchIcon}>🔍</Text>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Hero Band ─────────────────────────────────────── */}
+        <LinearGradient
+          colors={['#4a0012', '#800020', '#8a0d28']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.hero}
+        >
+          <View style={[styles.decorOrb, styles.decorOrbA]} />
+          <View style={[styles.decorOrb, styles.decorOrbB]} />
+
+          <Text style={styles.heroEyebrow}>DISCOVER</Text>
+          <Text style={styles.heroTitle}>Search Assets</Text>
+          <Text style={styles.heroSubtitle}>
+            Find assets by name, tag, serial or location.
+          </Text>
+        </LinearGradient>
+
+        {/* ── Search (overlapping the band) ─────────────────── */}
+        <View style={styles.searchRow}>
+          <View style={styles.searchInput}>
+            <Ionicons name="search" size={18} color="#94a3b8" style={styles.searchIcon} />
             <TextInput
-              style={styles.searchInput}
-              placeholder="Search assets, IDs, or users..."
-              placeholderTextColor={Colors.outlineVariant}
+              style={styles.searchTextInput}
+              placeholder="Search assets, IDs, or serials..."
+              placeholderTextColor="#94a3b8"
               value={query}
               onChangeText={setQuery}
+              selectionColor={BRAND}
+              autoFocus
             />
-            <TouchableOpacity onPress={() => setQuery('')}>
-              <Text style={styles.clearBtn}>✖</Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filters}>
-            {FILTERS.map((f) => (
-              <TouchableOpacity
-                key={f}
-                style={[styles.filterChip, activeFilter === f && styles.filterChipActive]}
-                onPress={() => setActiveFilter(f)}
-              >
-                <Text style={[styles.filterText, activeFilter === f && styles.filterTextActive]}>
-                  {f}
-                </Text>
+            {query.length > 0 && (
+              <TouchableOpacity onPress={() => setQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={18} color="#94a3b8" />
               </TouchableOpacity>
-            ))}
-          </ScrollView>
+            )}
+          </View>
         </View>
 
-        <Text style={styles.resultCount}>
-          Showing {results.length} results for "<Text style={{ fontWeight: '700' }}>{debouncedQuery || 'all assets'}</Text>"
+        {/* ── Filter Chips ──────────────────────────────────── */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterChips}
+        >
+          {FILTERS.map((chip) => {
+            const isActive = activeFilter === chip.value;
+            return (
+              <TouchableOpacity
+                key={chip.value || 'all'}
+                style={[styles.chip, isActive && styles.chipActive]}
+                activeOpacity={0.8}
+                onPress={() => setActiveFilter(chip.value)}
+              >
+                {isActive ? (
+                  <LinearGradient
+                    colors={['#66001a', '#800020']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.chipGradient}
+                  >
+                    <Text style={styles.chipTextActive}>{chip.label}</Text>
+                  </LinearGradient>
+                ) : (
+                  <Text style={styles.chipText}>{chip.label}</Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        <Text style={styles.listHeader}>
+          Results<Text style={styles.listCount}>  ·  {results.length}</Text>
         </Text>
 
-        {loading ? (
-          <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 32 }} />
+        {loading && !data ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="small" color={BRAND} />
+            <Text style={styles.loadingText}>Searching…</Text>
+          </View>
         ) : results.length === 0 ? (
-          <View style={{ alignItems: 'center', marginTop: 48 }}>
-            <Text style={{ fontSize: 16, color: Colors.onSurfaceVariant }}>No results found</Text>
+          <View style={styles.emptyBox}>
+            <View style={styles.emptyIconWrap}>
+              <Ionicons name="search-outline" size={40} color={BRAND} />
+            </View>
+            <Text style={styles.emptyTitle}>No Results Found</Text>
+            <Text style={styles.emptySub}>
+              {debouncedQuery.trim()
+                ? `Nothing matched "${debouncedQuery}". Try a different term.`
+                : 'Start typing to search across your inventory.'}
+            </Text>
           </View>
         ) : (
           results.map((item) => {
-            const ss = getStatusStyle(item.status);
+            const meta = statusMeta(item.status);
             return (
               <TouchableOpacity
                 key={item.id}
                 style={styles.resultCard}
+                activeOpacity={0.75}
                 onPress={() => router.push({ pathname: '/asset-detail', params: { id: String(item.id) } })}
               >
-                <View style={styles.resultImage}>
-                  <Text style={styles.resultImageIcon}>📦</Text>
+                <View style={styles.cardLeft}>
+                  {mediaSource(item.photo_url) ? (
+                    <Image source={mediaSource(item.photo_url)!} style={styles.cardImage} />
+                  ) : (
+                    <LinearGradient
+                      colors={['#fde6e6', '#fbd0d0']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.cardIcon}
+                    >
+                      <Text style={styles.cardIconText}>{item.category?.icon ?? '📦'}</Text>
+                    </LinearGradient>
+                  )}
                 </View>
-                <View style={styles.resultInfo}>
-                  <View style={styles.resultHeader}>
-                    <Text style={styles.resultName}>{item.name}</Text>
-                    <View style={[styles.statusBadge, { backgroundColor: ss.bg }]}>
-                      <Text style={[styles.statusText, { color: ss.text }]}>{getStatusLabel(item.status)}</Text>
+                <View style={styles.cardBody}>
+                  <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
+                  <Text style={styles.cardSerial}>{item.asset_tag}</Text>
+                  <View style={styles.cardMeta}>
+                    <View style={[styles.reasonBadge, { backgroundColor: meta.bg }]}>
+                      <View style={[styles.statusDot, { backgroundColor: meta.dot }]} />
+                      <Text style={[styles.reasonText, { color: meta.color }]}>{meta.label}</Text>
                     </View>
-                  </View>
-                  <Text style={styles.resultSerial}>SN: {item.serial}</Text>
-                  <View style={styles.resultMeta}>
-                    <Text style={styles.metaItem}>📍 {item.location ?? 'No location'}</Text>
-                    <Text style={styles.metaItem}>🏷 {item.asset_tag}</Text>
+                    {item.location ? (
+                      <View style={styles.locationPill}>
+                        <Ionicons name="location-outline" size={11} color="#64748b" />
+                        <Text style={styles.cardDate} numberOfLines={1}>{item.location}</Text>
+                      </View>
+                    ) : null}
                   </View>
                 </View>
+                <Ionicons name="chevron-forward" size={18} color="#cbd5e1" style={styles.rowChevron} />
               </TouchableOpacity>
             );
           })
@@ -150,52 +221,168 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface },
+  safeArea: { flex: 1, backgroundColor: '#f8f4f4' },
+
+  // ── App Bar ─────────────────────────────────────────────
   topBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12, backgroundColor: Colors.surface,
-    borderBottomWidth: 0.5, borderBottomColor: Colors.outlineVariant,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4 },
+      android: { elevation: 3 },
+      web: { boxShadow: '0 1px 6px rgba(15, 23, 42, 0.06)' },
+    }),
   },
-  iconBtn: { padding: 8 },
-  menuIcon: { gap: 3 },
-  menuLine: { width: 18, height: 2, backgroundColor: Colors.onSurfaceVariant, borderRadius: 1 },
-  topTitle: { fontSize: 20, fontWeight: '600', color: Colors.primary },
-  notifDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primaryContainer },
-  content: { padding: 16 },
-  searchContainer: { marginBottom: 16 },
-  searchBar: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surfaceContainerLow,
-    borderRadius: 12, paddingHorizontal: 16, height: 56, gap: 12,
+  topTitle: { fontSize: 16, fontWeight: '800', color: '#0f172a', letterSpacing: -0.2 },
+  iconBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#f8f4f4', alignItems: 'center', justifyContent: 'center' },
+
+  // ── Hero Band ───────────────────────────────────────────
+  hero: {
+    paddingTop: 20,
+    paddingBottom: 28,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    overflow: 'hidden',
   },
-  searchIcon: { fontSize: 18 },
-  searchInput: { flex: 1, fontSize: 16, color: Colors.onSurface, padding: 0 },
-  clearBtn: { fontSize: 18, color: Colors.onSurfaceVariant, padding: 4 },
-  filters: { marginTop: 12 },
-  filterChip: {
-    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, marginRight: 8,
-    backgroundColor: Colors.surfaceContainerHigh,
+  decorOrb: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.06)' },
+  decorOrbA: { top: -50, right: -40, width: 190, height: 190 },
+  decorOrbB: { bottom: -70, left: -40, width: 160, height: 160 },
+  heroEyebrow: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 2,
+    color: 'rgba(255,255,255,0.55)',
+    marginBottom: 6,
   },
-  filterChipActive: { backgroundColor: Colors.primaryContainer },
-  filterText: { fontSize: 12, fontWeight: '600', color: Colors.onSurfaceVariant, letterSpacing: 0.05 },
-  filterTextActive: { color: Colors.onPrimaryContainer },
-  resultCount: { fontSize: 14, color: Colors.onSurfaceVariant, marginBottom: 16 },
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    color: '#fff',
+    marginBottom: 4,
+  },
+  heroSubtitle: { fontSize: 13.5, color: 'rgba(255,255,255,0.72)' },
+
+  // ── Search ──────────────────────────────────────────────
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    marginTop: -22,
+  },
+  searchInput: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#efe7e7',
+    paddingHorizontal: 14,
+    height: 50,
+    ...softShadow,
+  },
+  searchIcon: { marginRight: 8 },
+  searchTextInput: { flex: 1, fontSize: 14, color: '#0f172a' },
+
+  // ── Filter Chips ────────────────────────────────────────
+  filterChips: { paddingHorizontal: 16, paddingTop: 16, gap: 8 },
+  chip: {
+    height: 40,
+    minWidth: 96,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#efe7e7',
+    overflow: 'hidden',
+    paddingHorizontal: 16,
+    ...softShadow,
+  },
+  chipGradient: {
+    position: 'absolute',
+    top: 0, bottom: 0, left: 0, right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipActive: { borderColor: 'transparent' },
+  chipText: { fontSize: 13, fontWeight: '600', color: '#475569' },
+  chipTextActive: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+  // ── List ────────────────────────────────────────────────
+  listHeader: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+    paddingHorizontal: 16,
+    paddingTop: 22,
+    paddingBottom: 12,
+    letterSpacing: -0.2,
+  },
+  listCount: { fontSize: 14, fontWeight: '700', color: '#94a3b8' },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingBottom: 36 },
+
   resultCard: {
-    flexDirection: 'row', backgroundColor: Colors.surfaceContainerLowest, borderRadius: 20,
-    padding: 16, marginBottom: 12, gap: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12,
-    elevation: 3, borderWidth: 1, borderColor: Colors.outlineVariant + '33',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 10,
+    borderRadius: 20,
+    padding: 14,
+    ...softShadow,
   },
-  resultImage: {
-    width: 80, height: 80, borderRadius: 16, backgroundColor: Colors.surfaceContainerHigh,
-    alignItems: 'center', justifyContent: 'center',
+  cardLeft: { marginRight: 13 },
+  cardIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  resultImageIcon: { fontSize: 32 },
-  resultInfo: { flex: 1 },
-  resultHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  resultName: { fontSize: 16, fontWeight: '600', color: Colors.onSurface, flex: 1 },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
-  statusText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.05 },
-  resultSerial: { fontSize: 14, color: Colors.onSurfaceVariant, marginTop: 4 },
-  resultMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8 },
-  metaItem: { fontSize: 12, color: Colors.outline },
+  cardImage: { width: 48, height: 48, borderRadius: 14 },
+  cardIconText: { fontSize: 22 },
+  cardBody: { flex: 1 },
+  cardName: { fontSize: 15, fontWeight: '700', color: '#0f172a', letterSpacing: -0.2 },
+  cardSerial: { fontSize: 12, color: '#94a3b8', marginTop: 2, fontVariant: ['tabular-nums'] },
+  cardMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 7, gap: 10 },
+  locationPill: { flexDirection: 'row', alignItems: 'center', gap: 3, flexShrink: 1 },
+  cardDate: { fontSize: 11, color: '#64748b', flexShrink: 1 },
+  reasonBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 9,
+    gap: 4,
+  },
+  statusDot: { width: 5, height: 5, borderRadius: 2.5 },
+  reasonText: { fontSize: 10, fontWeight: '700' },
+  rowChevron: { marginLeft: 6 },
+
+  // ── States ──────────────────────────────────────────────
+  centered: { alignItems: 'center', paddingVertical: 48, gap: 6 },
+  loadingText: { fontSize: 13, color: '#94a3b8', marginTop: 8 },
+  emptyBox: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 32, gap: 4 },
+  emptyIconWrap: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: BRAND_LIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#334155' },
+  emptySub: { fontSize: 13, color: '#94a3b8', textAlign: 'center' },
 });
