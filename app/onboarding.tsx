@@ -89,7 +89,7 @@ export default function OnboardingScreen() {
   };
 
   const handleGetStarted = async () => {
-    await AsyncStorage.setItem('onboarding_complete', 'true');
+    await AsyncStorage.setItem('onboarding_complete', '1');
     router.replace('/login');
   };
 

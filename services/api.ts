@@ -1,6 +1,23 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL;
+const RAW_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || 'https://assettracker.nolivers.com';
+
+export function buildApiUrl(endpoint: string): string {
+  const base = RAW_BASE.replace(/\/+$/, '');
+  let cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+  // If base already ends with /api and endpoint starts with /api/, strip double /api
+  if (base.endsWith('/api') && cleanEndpoint.startsWith('/api/')) {
+    cleanEndpoint = cleanEndpoint.substring(4);
+  }
+
+  // If base does NOT end with /api and endpoint does NOT start with /api, add /api
+  if (!base.endsWith('/api') && !cleanEndpoint.startsWith('/api/') && cleanEndpoint !== '/api') {
+    cleanEndpoint = `/api${cleanEndpoint}`;
+  }
+
+  return `${base}${cleanEndpoint}`;
+}
 
 interface ApiOptions {
   method?: string;
@@ -11,6 +28,15 @@ interface ApiOptions {
 
 class ApiClient {
   private token: string | null = null;
+
+  // ── Auth-ready gate ───────────────────────────────────────────────────────
+  // Resolves once `loadToken()` has been called (even if no token was stored).
+  // All useFetch calls wait on this promise so they never fire unauthenticated
+  // while AsyncStorage is still being read at cold-start on mobile.
+  private _authReadyResolve!: () => void;
+  readonly authReady: Promise<void> = new Promise<void>((resolve) => {
+    this._authReadyResolve = resolve;
+  });
 
   async setToken(token: string | null) {
     this.token = token;
@@ -24,6 +50,8 @@ class ApiClient {
   async loadToken() {
     const token = await AsyncStorage.getItem('auth_token');
     this.token = token;
+    // Signal that auth is resolved — useFetch hooks can now fire safely
+    this._authReadyResolve();
     return token;
   }
 
@@ -52,7 +80,7 @@ class ApiClient {
       config.body = isFormData ? body : JSON.stringify(body);
     }
 
-    const url = `${API_BASE}${endpoint}`;
+    const url = buildApiUrl(endpoint);
     console.log(`[API] ${method} ${url}`);
 
     let response: Response;
@@ -61,7 +89,7 @@ class ApiClient {
     } catch (fetchError: any) {
       console.error(`[API] Network error for ${method} ${url}:`, fetchError.message);
       throw new ApiError(
-        `Cannot connect to server. Please check your connection and ensure the backend is running at ${API_BASE}.`,
+        `Cannot connect to server. Please check your connection and ensure backend is running at ${url}.`,
         0
       );
     }
@@ -78,7 +106,7 @@ class ApiClient {
     } catch {
       if (text.includes('<!DOCTYPE') || text.includes('<html')) {
         throw new ApiError(
-          `Server returned HTML instead of JSON (HTTP ${response.status}). The API endpoint may be misconfigured.`,
+          `Server returned HTML instead of JSON (HTTP ${response.status}). Endpoint: ${url}`,
           response.status
         );
       }

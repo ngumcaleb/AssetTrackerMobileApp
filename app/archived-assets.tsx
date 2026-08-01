@@ -42,11 +42,17 @@ export default function ArchivedAssetsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [restoringId, setRestoringId] = useState<number | null>(null);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const { data, loading, error, refetch } = useFetch<PaginatedResponse<Asset>>({
     endpoint: '/api/assets',
-    params: { archived: true, search: search || undefined },
+    params: { archived: true, search: debouncedSearch || undefined },
   });
 
   const { data: summary } = useFetch<DashboardSummary>({
@@ -73,10 +79,10 @@ export default function ArchivedAssetsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.topTitle}>ScanTrack</Text>
+        <Text style={styles.topTitle}>Royalty World</Text>
         <View style={styles.topRight}>
-          <TouchableOpacity style={styles.iconBtn}>
-            <View style={styles.notifDot} />
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/notifications')}>
+            <Text style={{ fontSize: 18 }}>🔔</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -128,7 +134,12 @@ export default function ArchivedAssetsScreen() {
         )}
 
         {!loading && !error && assets.map((item) => (
-          <View key={item.id} style={styles.assetCard}>
+          <TouchableOpacity
+            key={item.id}
+            style={styles.assetCard}
+            activeOpacity={0.7}
+            onPress={() => router.push({ pathname: '/asset-detail', params: { id: String(item.id) } })}
+          >
             <View style={styles.cardTop}>
               <View style={styles.cardLeft}>
                 <View style={styles.cardIcon}>
@@ -141,7 +152,10 @@ export default function ArchivedAssetsScreen() {
               </View>
               <TouchableOpacity
                 style={styles.restoreBtn}
-                onPress={() => handleRestore(item.id)}
+                onPress={(e) => {
+                  e?.stopPropagation?.();
+                  handleRestore(item.id);
+                }}
                 disabled={restoringId === item.id}
               >
                 {restoringId === item.id ? (
@@ -165,7 +179,7 @@ export default function ArchivedAssetsScreen() {
                 </View>
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
         ))}
 
         {!loading && !error && assets.length === 0 && (

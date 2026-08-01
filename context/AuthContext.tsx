@@ -19,16 +19,6 @@ interface AuthState {
   isAuthenticated: boolean;
 }
 
-interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
-  logout: () => Promise<void>;
-  forgotPassword: (email: string) => Promise<void>;
-  updateProfile: (data: Partial<User>) => Promise<void>;
-  clearError: () => void;
-  error: string | null;
-}
-
 interface RegisterData {
   name: string;
   email: string;
@@ -36,6 +26,17 @@ interface RegisterData {
   password_confirmation: string;
   department?: string;
   phone?: string;
+}
+
+interface AuthContextType extends AuthState {
+  login: (email: string, password: string) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
+  logout: () => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
+  updateProfile: (data: Partial<User> & { name?: string }) => Promise<void>;
+  changePassword: (currentPassword: string, password: string, passwordConfirmation: string) => Promise<void>;
+  clearError: () => void;
+  error: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,14 +55,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const token = await api.loadToken();
       if (token) {
         try {
-          const user = await api.get<User>('/auth/me');
+          const user = await api.get<User>('/api/auth/me');
           setState({ user, token, isLoading: false, isAuthenticated: true });
         } catch {
           await api.setToken(null);
           setState({ user: null, token: null, isLoading: false, isAuthenticated: false });
         }
       } else {
-        setState(prev => ({ ...prev, isLoading: false }));
+        setState((prev) => ({ ...prev, isLoading: false }));
       }
     })();
   }, []);
@@ -69,11 +70,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     setError(null);
     try {
-      const data = await api.post<{ token: string; user: User }>('/auth/login', { email, password });
+      const data = await api.post<{ token: string; user: User }>('/api/auth/login', { email, password });
       await api.setToken(data.token);
       setState({ user: data.user, token: data.token, isLoading: false, isAuthenticated: true });
     } catch (e: any) {
-      const message = e instanceof ApiError ? e.message : (e.message || 'Network error. Please try again.');
+      const message = e instanceof ApiError ? e.message : e.message || 'Network error. Please try again.';
       setError(message);
       throw e;
     }
@@ -82,11 +83,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = useCallback(async (data: RegisterData) => {
     setError(null);
     try {
-      const response = await api.post<{ token: string; user: User }>('/auth/register', data);
+      const response = await api.post<{ token: string; user: User }>('/api/auth/register', data);
       await api.setToken(response.token);
       setState({ user: response.user, token: response.token, isLoading: false, isAuthenticated: true });
     } catch (e: any) {
-      const message = e instanceof ApiError ? e.message : (e.message || 'Network error. Please try again.');
+      const message = e instanceof ApiError ? e.message : e.message || 'Network error. Please try again.';
       setError(message);
       throw e;
     }
@@ -94,9 +95,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      await api.post('/auth/logout');
+      await api.post('/api/auth/logout');
     } catch {
-      // Ignore logout errors
+      // ignore
     }
     await api.setToken(null);
     setState({ user: null, token: null, isLoading: false, isAuthenticated: false });
@@ -105,25 +106,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const forgotPassword = useCallback(async (email: string) => {
     setError(null);
     try {
-      await api.post('/auth/forgot-password', { email });
+      await api.post('/api/auth/forgot-password', { email });
     } catch (e: any) {
-      const message = e instanceof ApiError ? e.message : (e.message || 'Network error. Please try again.');
+      const message = e instanceof ApiError ? e.message : e.message || 'Network error. Please try again.';
       setError(message);
       throw e;
     }
   }, []);
 
-  const updateProfile = useCallback(async (data: Partial<User>) => {
+  const updateProfile = useCallback(async (data: Partial<User> & { name?: string }) => {
     setError(null);
     try {
-      const user = await api.put<User>('/auth/profile', data);
-      setState(prev => ({ ...prev, user }));
+      const user = await api.put<User>('/api/auth/profile', data);
+      setState((prev) => ({ ...prev, user }));
     } catch (e: any) {
-      const message = e instanceof ApiError ? e.message : (e.message || 'Network error. Please try again.');
+      const message = e instanceof ApiError ? e.message : e.message || 'Network error. Please try again.';
       setError(message);
       throw e;
     }
   }, []);
+
+  const changePassword = useCallback(
+    async (currentPassword: string, password: string, passwordConfirmation: string) => {
+      setError(null);
+      try {
+        await api.put('/api/auth/password', {
+          current_password: currentPassword,
+          password,
+          password_confirmation: passwordConfirmation,
+        });
+      } catch (e: any) {
+        const message = e instanceof ApiError ? e.message : e.message || 'Network error. Please try again.';
+        setError(message);
+        throw e;
+      }
+    },
+    []
+  );
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -136,6 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         forgotPassword,
         updateProfile,
+        changePassword,
         error,
         clearError,
       }}

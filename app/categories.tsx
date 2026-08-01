@@ -33,16 +33,12 @@ export default function CategoriesScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.topBar}>
-          <TouchableOpacity style={styles.iconBtn}>
-            <View style={styles.menuIcon}>
-              <View style={styles.menuLine} />
-              <View style={styles.menuLine} />
-              <View style={styles.menuLine} />
-            </View>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
+            <Text style={{ fontSize: 22, color: Colors.onSurface }}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.topTitle}>ScanTrack</Text>
-          <TouchableOpacity style={styles.iconBtn}>
-            <View style={styles.notifDot} />
+          <Text style={styles.topTitle}>Categories</Text>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/notifications')}>
+            <Text style={{ fontSize: 18 }}>🔔</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.loadingContainer}>
@@ -56,16 +52,12 @@ export default function CategoriesScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.topBar}>
-          <TouchableOpacity style={styles.iconBtn}>
-            <View style={styles.menuIcon}>
-              <View style={styles.menuLine} />
-              <View style={styles.menuLine} />
-              <View style={styles.menuLine} />
-            </View>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
+            <Text style={{ fontSize: 22, color: Colors.onSurface }}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.topTitle}>ScanTrack</Text>
-          <TouchableOpacity style={styles.iconBtn}>
-            <View style={styles.notifDot} />
+          <Text style={styles.topTitle}>Categories</Text>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/notifications')}>
+            <Text style={{ fontSize: 18 }}>🔔</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.loadingContainer}>
@@ -78,16 +70,12 @@ export default function CategoriesScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconBtn}>
-          <View style={styles.menuIcon}>
-            <View style={styles.menuLine} />
-            <View style={styles.menuLine} />
-            <View style={styles.menuLine} />
-          </View>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
+          <Text style={{ fontSize: 22, color: Colors.onSurface }}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.topTitle}>ScanTrack</Text>
-        <TouchableOpacity style={styles.iconBtn}>
-          <View style={styles.notifDot} />
+        <Text style={styles.topTitle}>Royalty World</Text>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/notifications')}>
+          <Text style={{ fontSize: 18 }}>🔔</Text>
         </TouchableOpacity>
       </View>
 
@@ -95,7 +83,7 @@ export default function CategoriesScreen() {
         <Text style={styles.screenTitle}>Category Management</Text>
 
         <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>ðŸ”</Text>
+          <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
             placeholder="Search categories..."
@@ -111,11 +99,11 @@ export default function CategoriesScreen() {
               <TouchableOpacity
                 key={cat.id}
                 style={styles.categoryCard}
-                onPress={() => {}}
+                onPress={() => router.push({ pathname: '/category-form', params: { id: String(cat.id) } })}
               >
                 <View style={styles.cardLeft}>
                   <View style={[styles.cardIcon, { backgroundColor: Colors.primary + '1A' }]}>
-                    <Text style={styles.cardIconText}>{cat.icon || 'ðŸ“¦'}</Text>
+                    <Text style={styles.cardIconText}>{cat.icon || '📦'}</Text>
                   </View>
                   <View>
                     <Text style={styles.cardName}>{cat.name}</Text>
@@ -123,7 +111,7 @@ export default function CategoriesScreen() {
                   </View>
                 </View>
                 <View style={styles.cardRight}>
-                  <Text style={styles.chevron}>â€º</Text>
+                  <Text style={styles.chevron}>›</Text>
                 </View>
               </TouchableOpacity>
             );
@@ -131,7 +119,7 @@ export default function CategoriesScreen() {
         </View>
       </ScrollView>
 
-      <TouchableOpacity style={styles.fab}>
+      <TouchableOpacity style={styles.fab} onPress={() => router.push('/category-form')}>
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
     </View>

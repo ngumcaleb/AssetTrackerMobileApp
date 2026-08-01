@@ -24,10 +24,11 @@ export interface Asset {
   name: string;
   asset_tag: string;
   serial: string;
-  status: 'active' | 'archived' | 'checked_out';
+  status: 'active' | 'archived' | 'checked_out' | 'discarded';
   photo_url: string | null;
   brand: string | null;
   model: string | null;
+  condition: string | null;
   purchase_date: string | null;
   purchase_price: number | null;
   supplier: string | null;
@@ -35,6 +36,8 @@ export interface Asset {
   description: string | null;
   archived_at: string | null;
   archived_reason: string | null;
+  discarded_at: string | null;
+  discarded_reason: string | null;
   created_at: string;
   category?: Category;
   creator?: User;
@@ -92,9 +95,12 @@ export interface PaginatedResponse<T> {
 export interface DashboardSummary {
   total: number;
   active: number;
+  archived: number;
+  discarded?: number;
   damaged: number;
   expired: number;
   checked_out: number;
   recent_checkouts: CheckOut[];
   recent_assets: Asset[];
+  recent_activity: ActivityLog[];
 }

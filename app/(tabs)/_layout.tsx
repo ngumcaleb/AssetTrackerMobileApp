@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
+import { View, StyleSheet, Platform, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 
 export default function TabLayout() {
@@ -8,7 +9,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.onSurfaceVariant,
+        tabBarInactiveTintColor: Colors.outline,
         headerShown: false,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabBarLabel,
@@ -18,9 +19,13 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color }) => (
-            <View style={styles.iconWrap}>
-              <View style={[styles.navIcon, { backgroundColor: color }]} />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
+              <Ionicons
+                name={focused ? 'grid' : 'grid-outline'}
+                size={22}
+                color={focused ? Colors.primary : Colors.outline}
+              />
             </View>
           ),
         }}
@@ -29,9 +34,13 @@ export default function TabLayout() {
         name="assets"
         options={{
           title: 'Assets',
-          tabBarIcon: ({ color }) => (
-            <View style={styles.iconWrap}>
-              <View style={[styles.navIcon, { backgroundColor: color, width: 20, height: 16, borderRadius: 3 }]} />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
+              <Ionicons
+                name={focused ? 'cube' : 'cube-outline'}
+                size={22}
+                color={focused ? Colors.primary : Colors.outline}
+              />
             </View>
           ),
         }}
@@ -41,35 +50,39 @@ export default function TabLayout() {
         options={{
           title: 'Scan',
           tabBarIcon: () => null,
-          tabBarButton: ({ onPress, onLongPress, accessibilityState, accessibilityLabel, testID }) => (
-            <Pressable
-              style={styles.scanButtonWrapper}
-              onPress={onPress}
-              onLongPress={onLongPress}
-              accessibilityRole="button"
-              accessibilityState={accessibilityState}
-              accessibilityLabel={accessibilityLabel}
-              testID={testID}
-            >
-              <View style={styles.scanButton}>
-                <View style={styles.scanIconInner}>
-                  <View style={styles.scanCorner} />
-                  <View style={[styles.scanCorner, styles.scanCornerRight]} />
-                  <View style={[styles.scanCorner, styles.scanCornerBottom]} />
-                  <View style={[styles.scanCorner, styles.scanCornerBottomRight]} />
+          tabBarButton: ({ onPress, onLongPress, accessibilityState, accessibilityLabel, testID }) => {
+            const isFocused = accessibilityState?.selected;
+            return (
+              <Pressable
+                style={styles.scanButtonWrapper}
+                onPress={onPress}
+                onLongPress={onLongPress}
+                accessibilityRole="button"
+                accessibilityState={accessibilityState}
+                accessibilityLabel={accessibilityLabel}
+                testID={testID}
+              >
+                <View style={[styles.scanButtonRing, isFocused && styles.scanButtonRingActive]}>
+                  <View style={styles.scanButton}>
+                    <Ionicons name="qr-code" size={26} color="#ffffff" />
+                  </View>
                 </View>
-              </View>
-            </Pressable>
-          ),
+              </Pressable>
+            );
+          },
         }}
       />
       <Tabs.Screen
         name="activity"
         options={{
           title: 'Activity',
-          tabBarIcon: ({ color }) => (
-            <View style={styles.iconWrap}>
-              <View style={[styles.navIcon, { backgroundColor: color, borderRadius: 10 }]} />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
+              <Ionicons
+                name={focused ? 'time' : 'time-outline'}
+                size={22}
+                color={focused ? Colors.primary : Colors.outline}
+              />
             </View>
           ),
         }}
@@ -78,103 +91,87 @@ export default function TabLayout() {
         name="more"
         options={{
           title: 'More',
-          tabBarIcon: ({ color }) => (
-            <View style={styles.iconWrap}>
-              <View style={[styles.navIcon, { backgroundColor: color, width: 20, height: 4, borderRadius: 2 }]} />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
+              <Ionicons
+                name={focused ? 'apps' : 'apps-outline'}
+                size={22}
+                color={focused ? Colors.primary : Colors.outline}
+              />
             </View>
           ),
         }}
       />
-
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: Colors.surface,
-    borderTopColor: Colors.outlineVariant,
-    borderTopWidth: 0.5,
-    height: Platform.OS === 'ios' ? 88 : 64,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+    backgroundColor: '#ffffff',
+    borderTopColor: '#e2e8f0',
+    borderTopWidth: 1,
+    height: Platform.OS === 'ios' ? 88 : 68,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 10,
     paddingTop: 8,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-  },
-  tabBarLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.05,
-  },
-  iconWrap: {
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navIcon: {
-    width: 16,
-    height: 16,
-    borderRadius: 4,
-  },
-  scanButtonWrapper: {
-    top: -20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 64,
-    height: 64,
-  },
-  scanButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.primaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.primaryContainer,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  scanIconInner: {
-    width: 24,
-    height: 24,
+    elevation: 16,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
     position: 'relative',
   },
-  scanCorner: {
-    position: 'absolute',
-    width: 8,
-    height: 8,
-    borderTopWidth: 2,
-    borderLeftWidth: 2,
-    borderColor: Colors.onPrimaryContainer,
-    top: 0,
-    left: 0,
+  tabBarLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+    marginTop: 2,
   },
-  scanCornerRight: {
-    left: 'auto',
-    right: 0,
-    borderLeftWidth: 0,
-    borderRightWidth: 2,
+  iconContainer: {
+    width: 40,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  scanCornerBottom: {
-    top: 'auto',
-    bottom: 0,
-    borderTopWidth: 0,
-    borderBottomWidth: 2,
+  activeIconContainer: {
+    backgroundColor: '#fde6e6',
   },
-  scanCornerBottomRight: {
-    top: 'auto',
-    left: 'auto',
-    bottom: 0,
-    right: 0,
-    borderTopWidth: 0,
-    borderLeftWidth: 0,
-    borderBottomWidth: 2,
-    borderRightWidth: 2,
+  scanButtonWrapper: {
+    top: -24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 68,
+    height: 68,
+  },
+  scanButtonRing: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#ffffff',
+    padding: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#800020',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 12,
+  },
+  scanButtonRingActive: {
+    shadowColor: '#66001a',
+    shadowOpacity: 0.5,
+    shadowRadius: 18,
+    transform: [{ scale: 1.05 }],
+  },
+  scanButton: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 28,
+    backgroundColor: '#800020',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
+
+

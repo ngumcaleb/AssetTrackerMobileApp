@@ -65,16 +65,12 @@ export default function SearchScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconBtn}>
-          <View style={styles.menuIcon}>
-            <View style={styles.menuLine} />
-            <View style={styles.menuLine} />
-            <View style={styles.menuLine} />
-          </View>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
+          <Text style={{ fontSize: 22, color: Colors.onSurface }}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.topTitle}>ScanTrack</Text>
-        <TouchableOpacity style={styles.iconBtn}>
-          <View style={styles.notifDot} />
+        <Text style={styles.topTitle}>Search</Text>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/notifications')}>
+          <Text style={{ fontSize: 18 }}>🔔</Text>
         </TouchableOpacity>
       </View>
 

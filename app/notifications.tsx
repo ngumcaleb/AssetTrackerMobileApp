@@ -118,14 +118,19 @@ export default function NotificationsScreen() {
   };
 
   const handleMarkRead = async (notification: Notification) => {
-    if (notification.is_read) return;
-    try {
-      await markRead({ id: notification.id });
-      setLocalNotifications((prev) => {
-        const current = prev ?? data?.data ?? [];
-        return current.map((n) => (n.id === notification.id ? { ...n, is_read: true } : n));
-      });
-    } catch {}
+    if (!notification.is_read) {
+      try {
+        await markRead({ id: notification.id });
+        setLocalNotifications((prev) => {
+          const current = prev ?? data?.data ?? [];
+          return current.map((n) => (n.id === notification.id ? { ...n, is_read: true } : n));
+        });
+      } catch {}
+    }
+    const assetId = notification.metadata?.asset_id;
+    if (assetId) {
+      router.push({ pathname: '/asset-detail', params: { id: String(assetId) } });
+    }
   };
 
   const renderNotification = (item: Notification) => {

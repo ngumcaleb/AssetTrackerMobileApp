@@ -32,6 +32,12 @@ export function useFetch<T = any>({ endpoint, params, enabled = true, onSuccess,
     setError(null);
 
     try {
+      // ── Wait for auth token to be loaded from AsyncStorage ──────────────
+      // This prevents unauthenticated requests on cold-start (especially on
+      // mobile where AsyncStorage is async and the first screen fires before
+      // AuthContext has finished loading the stored token).
+      await api.authReady;
+
       const queryParts: string[] = [];
       if (params) {
         Object.entries(params).forEach(([key, value]) => {
@@ -87,6 +93,9 @@ export function useMutation<T = any, P = any>(
     setLoading(true);
     setError(null);
     try {
+      // Wait for auth to be ready before any mutation too
+      await api.authReady;
+
       const url = typeof endpoint === 'function' ? endpoint(params) : endpoint;
       let result: T;
       switch (method) {

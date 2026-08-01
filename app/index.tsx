@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { Colors } from '@/constants/Colors';
@@ -83,12 +84,13 @@ export default function SplashScreen() {
 
   useEffect(() => {
     if (!isLoading) {
-      const timer = setTimeout(() => {
+      const timer = setTimeout(async () => {
         if (isAuthenticated) {
           router.replace('/(tabs)');
-        } else {
-          router.replace('/login');
+          return;
         }
+        const seen = await AsyncStorage.getItem('onboarding_complete');
+        router.replace(seen === '1' ? '/login' : '/onboarding');
       }, 500);
       return () => clearTimeout(timer);
     }
@@ -126,7 +128,7 @@ export default function SplashScreen() {
         <Animated.Text
           style={[styles.brandName, { opacity: textOpacity }]}
         >
-          ScanTrack
+          Royalty World
         </Animated.Text>
 
         <Animated.Text

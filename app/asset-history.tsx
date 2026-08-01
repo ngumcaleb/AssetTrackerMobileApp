@@ -84,7 +84,7 @@ export default function AssetHistoryScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.topTitle}>ScanTrack</Text>
+        <Text style={styles.topTitle}>Royalty World</Text>
         <TouchableOpacity style={styles.iconBtn}>
           <View style={styles.notifDot} />
         </TouchableOpacity>

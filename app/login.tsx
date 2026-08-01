@@ -1,22 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   StatusBar,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
-  ActivityIndicator,
-  Alert,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
+import AuthBrandHeader from '@/components/auth/auth-brand-header';
+import AuthField from '@/components/auth/auth-field';
+import AuthButton from '@/components/auth/auth-button';
+import AuthErrorBanner from '@/components/auth/auth-error-banner';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -24,17 +26,27 @@ export default function LoginScreen() {
   const { login, error, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+
+  const cardAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (error) setLocalError(error);
   }, [error]);
 
+  useEffect(() => {
+    Animated.timing(cardAnim, {
+      toValue: 1,
+      duration: 450,
+      delay: 120,
+      useNativeDriver: true,
+    }).start();
+  }, [cardAnim]);
+
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please enter both email and password.');
+      setLocalError('Please enter both email and password.');
       return;
     }
 
@@ -53,10 +65,10 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#3d0010" />
       <KeyboardAvoidingView
-        style={styles.keyboardAvoid}
+        style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
@@ -64,109 +76,71 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Branding */}
-          <View style={styles.brandSection}>
-            <View style={styles.logoContainer}>
-              <Text style={styles.logoText}>QR</Text>
-            </View>
-            <Text style={styles.brandName}>ScanTrack</Text>
-            <Text style={styles.tagline}>Enterprise Asset Management</Text>
-          </View>
+          <AuthBrandHeader
+            eyebrow="Welcome back"
+            title="Sign in to your account"
+            subtitle="Track, verify, and manage your enterprise assets from anywhere."
+          />
 
-          {/* Welcome */}
-          <View style={styles.welcomeSection}>
-            <Text style={styles.welcomeTitle}>Welcome Back</Text>
-            <Text style={styles.welcomeSubtitle}>Efficiently tracking what matters.</Text>
-          </View>
+          <Animated.View
+            style={[
+              styles.card,
+              {
+                opacity: cardAnim,
+                transform: [
+                  {
+                    translateY: cardAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [24, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <AuthField
+              label="Email address"
+              icon="mail-outline"
+              placeholder="name@company.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={email}
+              onChangeText={setEmail}
+            />
 
-          {/* Login Card */}
-          <View style={styles.card}>
-            {/* Email */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>EMAIL ADDRESS</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="mail-outline" size={20} color={Colors.outline} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="name@company.com"
-                  placeholderTextColor={Colors.outlineVariant}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-            </View>
-
-            {/* Password */}
-            <View style={styles.inputGroup}>
-              <View style={styles.labelRow}>
-                <Text style={styles.label}>PASSWORD</Text>
-                <TouchableOpacity onPress={() => router.push('/forgot-password')}>
-                  <Text style={styles.forgotLink}>Forgot Password?</Text>
+            <AuthField
+              label="Password"
+              labelRight={
+                <TouchableOpacity onPress={() => router.push('/forgot-password')} activeOpacity={0.7}>
+                  <Text style={styles.forgotLink}>Forgot?</Text>
                 </TouchableOpacity>
-              </View>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="lock-closed-outline" size={20} color={Colors.outline} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your password"
-                  placeholderTextColor={Colors.outlineVariant}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeButton}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
-                    color={Colors.outline}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
+              }
+              icon="lock-closed-outline"
+              placeholder="Enter your password"
+              secure
+              autoCapitalize="none"
+              value={password}
+              onChangeText={setPassword}
+            />
 
-            {/* Sign In Button */}
-            <TouchableOpacity
-              style={[styles.signInBtn, isLoading && styles.signInBtnDisabled]}
-              onPress={handleLogin}
-              disabled={isLoading}
-              activeOpacity={0.8}
-            >
-              {isLoading ? (
-                <ActivityIndicator color={Colors.onPrimary} size="small" />
-              ) : (
-                <View style={styles.signInContent}>
-                  <Text style={styles.signInText}>Sign In</Text>
-                  <Ionicons name="arrow-forward" size={20} color={Colors.onPrimary} />
-                </View>
-              )}
-            </TouchableOpacity>
-
-            {/* Error Banner */}
             {localError ? (
-              <View style={styles.errorBanner}>
-                <Ionicons name="alert-circle" size={18} color="#ef4444" />
-                <Text style={styles.errorText}>{localError}</Text>
-                <TouchableOpacity onPress={() => setLocalError(null)}>
-                  <Ionicons name="close" size={16} color="#ef4444" />
-                </TouchableOpacity>
-              </View>
+              <AuthErrorBanner message={localError} onDismiss={() => setLocalError(null)} />
             ) : null}
 
-            {/* Divider */}
+            <AuthButton
+              label="Sign In"
+              icon="arrow-forward"
+              loading={isLoading}
+              onPress={handleLogin}
+            />
+
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
               <Text style={styles.dividerText}>Or continue with</Text>
               <View style={styles.dividerLine} />
             </View>
 
-            {/* Social Buttons */}
             <View style={styles.socialRow}>
               <TouchableOpacity style={styles.socialBtn} activeOpacity={0.7}>
                 <Ionicons name="logo-google" size={20} color="#4285F4" />
@@ -177,14 +151,13 @@ export default function LoginScreen() {
                 <Text style={styles.socialText}>SSO</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
 
-          {/* Footer */}
-          <View style={styles.footer}>
+          <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
             <Text style={styles.footerText}>
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
             </Text>
-            <TouchableOpacity onPress={() => router.push('/sign-up')}>
+            <TouchableOpacity onPress={() => router.push('/sign-up')} activeOpacity={0.7}>
               <Text style={styles.signUpLink}>Sign Up</Text>
             </TouchableOpacity>
           </View>
@@ -199,162 +172,47 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  keyboardAvoid: {
+  flex: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 40,
-  },
-  brandSection: {
-    alignItems: 'center',
-    marginTop: 32,
-    marginBottom: 8,
-  },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    backgroundColor: Colors.primaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 6,
-  },
-  logoText: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: Colors.onPrimary,
-  },
-  brandName: {
-    fontSize: 30,
-    fontWeight: '700',
-    color: Colors.onSurface,
-    letterSpacing: -0.02,
-    marginBottom: 4,
-  },
-  tagline: {
-    fontSize: 15,
-    color: Colors.onSurfaceVariant,
-    fontWeight: '500',
-  },
-  welcomeSection: {
-    alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 28,
-  },
-  welcomeTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: Colors.onBackground,
-    letterSpacing: -0.01,
-    marginBottom: 6,
-  },
-  welcomeSubtitle: {
-    fontSize: 15,
-    color: Colors.onSurfaceVariant,
   },
   card: {
     marginHorizontal: 20,
-    backgroundColor: Colors.surfaceContainerLowest,
+    marginTop: -30,
+    backgroundColor: '#ffffff',
     borderRadius: 28,
-    borderWidth: 1,
-    borderColor: Colors.outlineVariant,
-    padding: 28,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.onSurfaceVariant,
-    letterSpacing: 0.05,
+    padding: 24,
+    shadowColor: '#3d0010',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.12,
+    shadowRadius: 28,
+    elevation: 8,
   },
   forgotLink: {
     fontSize: 12,
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surfaceContainerLow,
-    borderRadius: 12,
-    height: 56,
-    paddingHorizontal: 16,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: Colors.onSurface,
-    paddingVertical: 0,
-  },
-  eyeButton: {
-    padding: 4,
-    marginLeft: 8,
-  },
-  signInBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: 28,
-    height: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 6,
-    marginTop: 4,
-  },
-  signInBtnDisabled: {
-    opacity: 0.6,
-  },
-  signInContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  signInText: {
-    color: Colors.onPrimary,
-    fontSize: 18,
     fontWeight: '700',
+    color: Colors.primary,
+    letterSpacing: 0.05,
   },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 24,
+    marginVertical: 22,
   },
   dividerLine: {
     flex: 1,
-    height: 1,
+    height: StyleSheet.hairlineWidth,
     backgroundColor: Colors.outlineVariant,
   },
   dividerText: {
     marginHorizontal: 14,
-    fontSize: 12,
-    color: Colors.outlineVariant,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.08,
+    color: Colors.outline,
     textTransform: 'uppercase',
-    letterSpacing: 0.05,
   },
   socialRow: {
     flexDirection: 'row',
@@ -363,10 +221,10 @@ const styles = StyleSheet.create({
   socialBtn: {
     flex: 1,
     height: 48,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: Colors.outlineVariant,
-    backgroundColor: Colors.surfaceContainerLowest,
+    backgroundColor: '#ffffff',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -381,8 +239,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 32,
-    paddingBottom: 20,
+    marginTop: 28,
   },
   footerText: {
     fontSize: 15,
@@ -392,23 +249,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: Colors.primary,
-  },
-  errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fef2f2',
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginTop: 16,
-    gap: 8,
-  },
-  errorText: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#991b1b',
   },
 });

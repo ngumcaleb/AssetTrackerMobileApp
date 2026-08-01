@@ -38,6 +38,22 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan asset QR codes.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos to attach asset images.",
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to take asset photos.",
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": {
