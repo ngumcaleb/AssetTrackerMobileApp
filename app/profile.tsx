@@ -20,11 +20,11 @@ import { getInitials } from '@/utils/format';
 const BRAND       = '#800020';
 const BRAND_DARK  = '#4a0012';
 
-const softShadow = Platform.select({
+const softShadow: object = Platform.select({
   ios:     { shadowColor: '#0f172a', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
   android: { elevation: 2 },
-  web:     { boxShadow: '0 2px 14px rgba(15, 23, 42, 0.07)' },
-});
+  default: {},
+}) ?? {};
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -220,11 +220,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
-    ...Platform.select({
+    ...(Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4 },
       android: { elevation: 3 },
-      web: { boxShadow: '0 1px 6px rgba(15, 23, 42, 0.06)' },
-    }),
+      default: {},
+    }) as object),
   },
   topTitle: { fontSize: 16, fontWeight: '800', color: '#0f172a', letterSpacing: -0.2 },
   iconBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#f8f4f4', alignItems: 'center', justifyContent: 'center' },
@@ -335,11 +335,11 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 14,
     borderRadius: 16,
-    ...Platform.select({
+    ...(Platform.select({
       ios: { shadowColor: BRAND_DARK, shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.35, shadowRadius: 10 },
       android: { elevation: 6 },
-      web: { boxShadow: '0 8px 20px rgba(74, 0, 18, 0.35)' },
-    }),
+      default: {},
+    }) as object),
   },
   saveBtn: {
     flexDirection: 'row',
