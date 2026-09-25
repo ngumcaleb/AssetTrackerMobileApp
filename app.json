@@ -2,7 +2,7 @@
   "expo": {
     "name": "Royalty World",
     "slug": "AssetTracker",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon.png",
     "scheme": "assettracker",
@@ -13,13 +13,12 @@
     },
     "android": {
       "package": "com.ngumcaleb.assettracker",
-      "versionCode": 5,
+      "versionCode": 6,
       "adaptiveIcon": {
         "backgroundColor": "#F6F4F0",
         "foregroundImage": "./assets/images/app-icon.png",
         "monochromeImage": "./assets/images/app-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA"
@@ -57,6 +56,16 @@
           "photosPermission": "Allow $(PRODUCT_NAME) to access your photos to attach asset images.",
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to take asset photos.",
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24,
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35
+          }
         }
       ]
     ],
