@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "AssetTracker",
+    "name": "Royalty World",
     "slug": "AssetTracker",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon.png",
     "scheme": "assettracker",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.ngumcaleb.assettracker",
-      "versionCode": 3,
+      "versionCode": 5,
       "adaptiveIcon": {
         "backgroundColor": "#F6F4F0",
         "foregroundImage": "./assets/images/app-icon.png",

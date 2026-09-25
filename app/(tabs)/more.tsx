@@ -223,7 +223,8 @@ export default function MoreScreen() {
           </LinearGradient>
         </TouchableOpacity>
 
-        <Text style={styles.version}>Royalty World Asset Tracker v1.0.0</Text>
+        <Text style={styles.version}>Royalty World Asset Tracker</Text>
+        <Text style={styles.solutionBy}>Solution By Virdic</Text>
       </ScrollView>
     </View>
   );
@@ -396,4 +397,12 @@ const styles = StyleSheet.create({
   logoutText: { fontSize: 15, fontWeight: '700', color: '#dc2626' },
 
   version: { fontSize: 12, color: '#94a3b8', textAlign: 'center' },
+  solutionBy: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginTop: 6,
+    letterSpacing: 0.5,
+  },
 });

@@ -135,7 +135,8 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <Text style={styles.version}>Royalty World · AssetTracker 1.0.0</Text>
+        <Text style={styles.version}>Royalty World · AssetTracker</Text>
+        <Text style={styles.solutionBy}>Solution By Virdic</Text>
       </ScrollView>
     </View>
   );
@@ -204,4 +205,12 @@ const styles = StyleSheet.create({
   },
   saveText: { color: Colors.onPrimary, fontWeight: '600' },
   version: { fontSize: 12, color: Colors.outline, textAlign: 'center' },
+  solutionBy: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.outline,
+    textAlign: 'center',
+    marginTop: 6,
+    letterSpacing: 0.5,
+  },
 });

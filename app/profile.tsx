@@ -198,6 +198,10 @@ export default function ProfileScreen() {
             <Text style={styles.logoutText}>Log Out</Text>
           </LinearGradient>
         </TouchableOpacity>
+
+        <View style={styles.footerWrap}>
+          <Text style={styles.footerText}>Solution By Virdic</Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -364,4 +368,15 @@ const styles = StyleSheet.create({
     borderColor: '#fecdd3',
   },
   logoutText: { fontSize: 15, fontWeight: '700', color: '#dc2626' },
+  footerWrap: {
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 20,
+  },
+  footerText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#94a3b8',
+    letterSpacing: 0.5,
+  },
 });
