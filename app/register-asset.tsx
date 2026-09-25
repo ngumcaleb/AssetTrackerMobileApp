@@ -33,6 +33,7 @@ export default function RegisterAssetScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
+  const [assetCode, setAssetCode] = useState('');
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [categoryLabel, setCategoryLabel] = useState('Select category');
   const [brand, setBrand] = useState('');
@@ -42,6 +43,7 @@ export default function RegisterAssetScreen() {
   const [price, setPrice] = useState('');
   const [supplier, setSupplier] = useState('');
   const [location, setLocation] = useState('');
+  const [assignedCustodian, setAssignedCustodian] = useState('');
   const [description, setDescription] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -82,8 +84,8 @@ export default function RegisterAssetScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!name.trim() || !serial.trim() || !categoryId) {
-      Alert.alert('Missing fields', 'Name, serial, and category are required.');
+    if (!name.trim() || !categoryId) {
+      Alert.alert('Missing fields', 'Name and category are required.');
       return;
     }
     setSubmitting(true);
@@ -92,7 +94,8 @@ export default function RegisterAssetScreen() {
       if (photoUri) {
         const formData = new FormData();
         formData.append('name', name.trim());
-        formData.append('serial', serial.trim());
+        if (assetCode.trim()) formData.append('asset_code', assetCode.trim());
+        if (serial.trim()) formData.append('serial', serial.trim());
         formData.append('category_id', String(categoryId));
         if (brand) formData.append('brand', brand);
         if (model) formData.append('model', model);
@@ -100,6 +103,7 @@ export default function RegisterAssetScreen() {
         if (price) formData.append('purchase_price', price);
         if (supplier) formData.append('supplier', supplier);
         if (location) formData.append('location', location);
+        if (assignedCustodian) formData.append('assigned_custodian', assignedCustodian);
         if (description) formData.append('description', description);
         const ext = (photoUri.split('.').pop() ?? 'jpg').toLowerCase();
         const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
@@ -108,7 +112,8 @@ export default function RegisterAssetScreen() {
       } else {
         created = await api.post<Asset>('/api/assets', {
           name: name.trim(),
-          serial: serial.trim(),
+          asset_code: assetCode.trim() || undefined,
+          serial: serial.trim() || undefined,
           category_id: categoryId,
           brand: brand || undefined,
           model: model || undefined,
@@ -116,6 +121,7 @@ export default function RegisterAssetScreen() {
           purchase_price: price ? parseFloat(price) : undefined,
           supplier: supplier || undefined,
           location: location || undefined,
+          assigned_custodian: assignedCustodian || undefined,
           description: description || undefined,
         });
       }
@@ -125,7 +131,7 @@ export default function RegisterAssetScreen() {
         params: {
           id: String(created.id),
           name: created.name,
-          asset_tag: created.asset_tag,
+          asset_code: created.asset_code ?? '',
           category: created.category?.name ?? categoryLabel,
           location: created.location ?? location,
           created_at: created.created_at,
@@ -200,6 +206,9 @@ export default function RegisterAssetScreen() {
           <Text style={styles.fieldLabel}>Asset Name *</Text>
           <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="e.g. Forklift X-200" placeholderTextColor="#94a3b8" selectionColor={BRAND} />
 
+          <Text style={styles.fieldLabel}>Asset Code</Text>
+          <TextInput style={styles.input} value={assetCode} onChangeText={setAssetCode} placeholder="Your internal code (e.g. EQ-2024-001)" placeholderTextColor="#94a3b8" autoCapitalize="characters" selectionColor={BRAND} />
+
           <Text style={styles.fieldLabel}>Category *</Text>
           <TouchableOpacity style={styles.select} activeOpacity={0.7} onPress={pickCategory}>
             <Text style={[styles.selectText, !categoryId && styles.selectPlaceholder]}>
@@ -208,8 +217,11 @@ export default function RegisterAssetScreen() {
             <Ionicons name="chevron-down" size={17} color="#94a3b8" />
           </TouchableOpacity>
 
-          <Text style={styles.fieldLabel}>Serial Number *</Text>
-          <TextInput style={styles.input} value={serial} onChangeText={setSerial} placeholder="Unique serial" placeholderTextColor="#94a3b8" autoCapitalize="characters" selectionColor={BRAND} />
+          <Text style={styles.fieldLabel}>Serial Number</Text>
+          <TextInput style={styles.input} value={serial} onChangeText={setSerial} placeholder="Manufacturer serial number" placeholderTextColor="#94a3b8" autoCapitalize="characters" selectionColor={BRAND} />
+
+          <Text style={styles.fieldLabel}>Assigned Custodian</Text>
+          <TextInput style={styles.input} value={assignedCustodian} onChangeText={setAssignedCustodian} placeholder="Person responsible for this asset" placeholderTextColor="#94a3b8" selectionColor={BRAND} />
 
           <View style={styles.gridRow}>
             <View style={styles.half}>

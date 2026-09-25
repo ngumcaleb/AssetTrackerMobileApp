@@ -3,15 +3,30 @@ import React from 'react';
 import { View, StyleSheet, Platform, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
+  // With edgeToEdgeEnabled the app draws behind the Android system navigation
+  // bar, so the tab bar must reserve room for the bottom safe-area inset to
+  // stay above the system keys.
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 0);
+
+  const tabBarStyle = [
+    styles.tabBar,
+    {
+      height: (Platform.OS === 'ios' ? 88 : 68) + bottomInset,
+      paddingBottom: (Platform.OS === 'ios' ? 28 : 10) + bottomInset,
+    },
+  ];
+
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.outline,
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle,
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarShowLabel: true,
       }}>
@@ -111,8 +126,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderTopColor: '#e2e8f0',
     borderTopWidth: 1,
-    height: Platform.OS === 'ios' ? 88 : 68,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 10,
     paddingTop: 8,
     elevation: 16,
     shadowColor: '#0f172a',

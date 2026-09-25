@@ -2,7 +2,7 @@
   "expo": {
     "name": "AssetTracker",
     "slug": "AssetTracker",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon.png",
     "scheme": "assettracker",
@@ -12,13 +12,18 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.ngumcaleb.assettracker",
+      "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#F6F4F0",
         "foregroundImage": "./assets/images/app-icon.png",
         "monochromeImage": "./assets/images/app-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "output": "static",
@@ -59,6 +64,13 @@
       "typedRoutes": true,
       "reactCompiler": true,
       "tsconfigPaths": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a191fbe1-9bd2-4ca3-8080-30d292f1e55c"
+      }
+    },
+    "owner": "devnk"
   }
 }

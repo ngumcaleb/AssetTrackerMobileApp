@@ -132,7 +132,7 @@ export default function AssetDetailScreen() {
   const canCheckin = asset.status === 'checked_out' && !!checkout?.id;
 
   const ASSET_INFO = [
-    { label: 'Asset ID', value: asset.asset_tag },
+    { label: 'Asset Code', value: asset.asset_code || 'N/A' },
     { label: 'Category', value: asset.category?.name || 'N/A' },
     { label: 'Brand', value: asset.brand || 'N/A' },
     { label: 'Model', value: asset.model || 'N/A' },
@@ -141,6 +141,7 @@ export default function AssetDetailScreen() {
     { label: 'Purchase Date', value: formatDate(asset.purchase_date) },
     { label: 'Purchase Price', value: formatCurrency(asset.purchase_price) },
     { label: 'Supplier', value: asset.supplier || 'N/A' },
+    { label: 'Assigned Custodian', value: asset.assigned_custodian || 'N/A' },
   ];
 
   const photoSource = mediaSource(asset.photo_url);
@@ -170,7 +171,12 @@ export default function AssetDetailScreen() {
             )}
           </View>
           <View style={styles.heroOverlay}>
-            <Text style={styles.heroAssetName}>{asset.name}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.heroAssetName}>{asset.name}</Text>
+              {asset.asset_code ? (
+                <Text style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>{asset.asset_code}</Text>
+              ) : null}
+            </View>
             <View style={[styles.statusBadge, { backgroundColor: meta.bg }]}>
               <View style={[styles.statusDot, { backgroundColor: meta.dot }]} />
               <Text style={[styles.statusText, { color: meta.color }]}>{meta.label}</Text>
@@ -289,6 +295,7 @@ export default function AssetDetailScreen() {
                 params: {
                   name: asset.name,
                   asset_tag: asset.asset_tag,
+                  asset_code: asset.asset_code ?? '',
                   created_at: asset.created_at,
                 },
               })

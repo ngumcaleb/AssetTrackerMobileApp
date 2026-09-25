@@ -9,20 +9,21 @@ import { formatDate } from '@/utils/format';
 export default function PrintQRScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { name, asset_tag, created_at } = useLocalSearchParams<{
+  const { name, asset_tag, asset_code, created_at } = useLocalSearchParams<{
     name?: string;
     asset_tag?: string;
+    asset_code?: string;
     created_at?: string;
   }>();
 
   const displayName = name ?? 'Asset';
-  const displayTag = asset_tag ?? 'N/A';
-  const qrValue = displayTag !== 'N/A' ? displayTag : 'ASSET';
+  const displayCode = asset_code || asset_tag || 'N/A';
+  const qrValue = displayCode !== 'N/A' ? displayCode : (asset_tag || 'ASSET');
 
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `Asset: ${displayName}\nTag: ${displayTag}\nScan this tag in Royalty World AssetTracker.`,
+        message: `Asset: ${displayName}\nCode: ${displayCode}\nScan this code in Royalty World AssetTracker.`,
       });
     } catch {
       Alert.alert('Share unavailable', 'Could not open the share sheet.');
@@ -45,7 +46,7 @@ export default function PrintQRScreen() {
             <QRCode value={qrValue} size={200} backgroundColor="#fff" color="#000" />
           </View>
           <Text style={styles.assetName}>{displayName}</Text>
-          <Text style={styles.assetId}>{displayTag}</Text>
+          <Text style={styles.assetId}>{displayCode}</Text>
           {created_at ? <Text style={styles.assetDate}>Registered {formatDate(created_at)}</Text> : null}
         </View>
 

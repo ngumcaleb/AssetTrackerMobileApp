@@ -27,7 +27,7 @@ export default function AssetEditScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [name, setName] = useState('');
-  const [assetTag, setAssetTag] = useState('');
+  const [assetCode, setAssetCode] = useState('');
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [categoryLabel, setCategoryLabel] = useState('Select category');
   const [brand, setBrand] = useState('');
@@ -38,6 +38,7 @@ export default function AssetEditScreen() {
   const [price, setPrice] = useState('');
   const [supplier, setSupplier] = useState('');
   const [location, setLocation] = useState('');
+  const [assignedCustodian, setAssignedCustodian] = useState('');
   const [description, setDescription] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -46,7 +47,7 @@ export default function AssetEditScreen() {
     endpoint: `/api/assets/${id}`,
     onSuccess: (asset) => {
       setName(asset.name);
-      setAssetTag(asset.asset_tag);
+      setAssetCode(asset.asset_code ?? '');
       setCategoryId(asset.category?.id ?? null);
       setCategoryLabel(asset.category?.name ?? 'Select category');
       setBrand(asset.brand ?? '');
@@ -57,6 +58,7 @@ export default function AssetEditScreen() {
       setPrice(asset.purchase_price != null ? String(asset.purchase_price) : '');
       setSupplier(asset.supplier ?? '');
       setLocation(asset.location ?? '');
+      setAssignedCustodian(asset.assigned_custodian ?? '');
       setDescription(asset.description ?? '');
       setPhotoPreview(asset.photo_url);
     },
@@ -89,15 +91,17 @@ export default function AssetEditScreen() {
     try {
       const payload: Record<string, any> = {
         name,
+        asset_code: assetCode || null,
         category_id: categoryId ?? undefined,
         brand,
         model,
-        serial,
+        serial: serial || null,
         condition,
         purchase_date: purchaseDate || undefined,
         purchase_price: price ? parseFloat(price) : undefined,
         supplier,
         location,
+        assigned_custodian: assignedCustodian || null,
         description,
       };
 
@@ -163,10 +167,15 @@ export default function AssetEditScreen() {
               value={name}
               onChangeText={setName}
             />
-            <Text style={styles.fieldLabel}>Asset Tag (auto-generated)</Text>
-            <View style={[styles.input, styles.readonlyInput]}>
-              <Text style={styles.readonlyText}>{assetTag || '—'}</Text>
-            </View>
+            <Text style={styles.fieldLabel}>Asset Code</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Your internal code (e.g. EQ-2024-001)"
+              placeholderTextColor={Colors.outlineVariant}
+              value={assetCode}
+              onChangeText={setAssetCode}
+              autoCapitalize="characters"
+            />
             <Text style={styles.fieldLabel}>Category</Text>
             <TouchableOpacity
               style={styles.selectBox}
@@ -222,6 +231,14 @@ export default function AssetEditScreen() {
               placeholderTextColor={Colors.outlineVariant}
               value={serial}
               onChangeText={setSerial}
+            />
+            <Text style={styles.fieldLabel}>Assigned Custodian</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Person responsible for this asset"
+              placeholderTextColor={Colors.outlineVariant}
+              value={assignedCustodian}
+              onChangeText={setAssignedCustodian}
             />
             <Text style={styles.fieldLabel}>Condition</Text>
             <TouchableOpacity

@@ -92,7 +92,7 @@ export default function SearchScreen() {
           <Text style={styles.heroEyebrow}>DISCOVER</Text>
           <Text style={styles.heroTitle}>Search Assets</Text>
           <Text style={styles.heroSubtitle}>
-            Find assets by name, tag, serial or location.
+            Find assets by name, code, serial or location.
           </Text>
         </LinearGradient>
 
@@ -102,7 +102,7 @@ export default function SearchScreen() {
             <Ionicons name="search" size={18} color="#94a3b8" style={styles.searchIcon} />
             <TextInput
               style={styles.searchTextInput}
-              placeholder="Search assets, IDs, or serials..."
+              placeholder="Search assets, codes, or serials..."
               placeholderTextColor="#94a3b8"
               value={query}
               onChangeText={setQuery}
@@ -196,7 +196,9 @@ export default function SearchScreen() {
                 </View>
                 <View style={styles.cardBody}>
                   <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
-                  <Text style={styles.cardSerial}>{item.asset_tag}</Text>
+                  {item.asset_code ? (
+                    <Text style={styles.cardSerial}>{item.asset_code}</Text>
+                  ) : null}
                   <View style={styles.cardMeta}>
                     <View style={[styles.reasonBadge, { backgroundColor: meta.bg }]}>
                       <View style={[styles.statusDot, { backgroundColor: meta.dot }]} />

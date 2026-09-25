@@ -12,13 +12,14 @@ export default function RegistrationSuccessScreen() {
     id?: string;
     name?: string;
     asset_tag?: string;
+    asset_code?: string;
     category?: string;
     location?: string;
     created_at?: string;
   }>();
 
   const name = params.name ?? 'Asset';
-  const tag = params.asset_tag ?? 'N/A';
+  const displayCode = params.asset_code || params.asset_tag || 'N/A';
   const category = params.category ?? 'N/A';
   const location = params.location || 'Not set';
   const created = formatDate(params.created_at);
@@ -55,8 +56,8 @@ export default function RegistrationSuccessScreen() {
 
           <View style={styles.summaryGrid}>
             <View>
-              <Text style={styles.summaryLabel}>Asset Tag</Text>
-              <Text style={styles.summaryValue}>{tag}</Text>
+              <Text style={styles.summaryLabel}>Asset Code</Text>
+              <Text style={styles.summaryValue}>{displayCode}</Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={styles.summaryLabel}>Category</Text>
@@ -94,7 +95,7 @@ export default function RegistrationSuccessScreen() {
               onPress={() =>
                 router.push({
                   pathname: '/print-qr',
-                  params: { name, asset_tag: tag, created_at: params.created_at },
+                  params: { name, asset_code: params.asset_code, asset_tag: params.asset_tag, created_at: params.created_at },
                 })
               }
             >

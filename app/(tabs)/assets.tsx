@@ -97,7 +97,9 @@ export default function AssetsScreen() {
           <Text style={styles.cardName} numberOfLines={1}>
             {item.name}
           </Text>
-          <Text style={styles.cardSerial}>{item.asset_tag}</Text>
+          {item.asset_code ? (
+            <Text style={styles.cardSerial}>{item.asset_code}</Text>
+          ) : null}
           <View style={styles.cardMeta}>
             <View style={[styles.reasonBadge, { backgroundColor: meta.bg }]}>
               <View style={[styles.statusDot, { backgroundColor: meta.dot }]} />

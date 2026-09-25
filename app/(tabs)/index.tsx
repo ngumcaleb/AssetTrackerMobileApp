@@ -19,6 +19,7 @@ import { useFetch } from '@/hooks/useFetch';
 import { useAuth } from '@/context/AuthContext';
 import { useDrawer } from '@/context/DrawerContext';
 import { formatTimeAgo, getInitials, statusMeta } from '@/utils/format';
+import { mediaSource } from '@/utils/media';
 import type { DashboardSummary } from '@/types/api';
 
 const BRAND       = '#800020';
@@ -363,12 +364,24 @@ export default function DashboardScreen() {
                       router.push({ pathname: '/asset-detail', params: { id: String(asset.id) } })
                     }
                   >
-                    <View style={[styles.assetIconWrap, { backgroundColor: BRAND_LIGHT }]}>
-                      <Text style={styles.assetEmoji}>{asset.category?.icon ?? '📦'}</Text>
+                    <View style={styles.assetIconWrap}>
+                      {mediaSource(asset.photo_url) ? (
+                        <Image
+                          source={mediaSource(asset.photo_url)!}
+                          style={styles.assetImage}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={[styles.assetEmojiWrap, { backgroundColor: BRAND_LIGHT }]}>
+                          <Text style={styles.assetEmoji}>{asset.category?.icon ?? '📦'}</Text>
+                        </View>
+                      )}
                     </View>
                     <View style={styles.assetBody}>
                       <Text style={styles.assetName} numberOfLines={1}>{asset.name}</Text>
-                      <Text style={styles.assetTag}>{asset.asset_tag}</Text>
+                      {asset.asset_code ? (
+                        <Text style={styles.assetTag}>{asset.asset_code}</Text>
+                      ) : null}
                     </View>
                     <View style={[styles.statusPill, { backgroundColor: meta.bg }]}>
                       <View style={[styles.statusDot, { backgroundColor: meta.dot }]} />
@@ -670,8 +683,13 @@ const styles = StyleSheet.create({
   // ── Recent Assets ──────────────────────────────────────
   assetRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 13 },
   assetIconWrap: {
-    width: 42, height: 42, borderRadius: 13,
-    alignItems: 'center', justifyContent: 'center', marginRight: 12,
+    width: 44, height: 44, borderRadius: 12,
+    overflow: 'hidden', marginRight: 12,
+  },
+  assetImage: { width: '100%', height: '100%', borderRadius: 12 },
+  assetEmojiWrap: {
+    width: '100%', height: '100%', borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
   },
   assetEmoji: { fontSize: 20 },
   assetBody:  { flex: 1 },

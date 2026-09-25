@@ -2,6 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const RAW_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || 'https://assettracker.nolivers.com';
 
+// Requests that hang (server black-holed, dead IP, firewall drop) must fail
+// fast instead of blocking app startup (e.g. the splash gated on isLoading).
+const REQUEST_TIMEOUT_MS = 15000;
+
 export function buildApiUrl(endpoint: string): string {
   const base = RAW_BASE.replace(/\/+$/, '');
   let cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
@@ -83,15 +87,26 @@ class ApiClient {
     const url = buildApiUrl(endpoint);
     console.log(`[API] ${method} ${url}`);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
     let response: Response;
     try {
-      response = await fetch(url, config);
+      response = await fetch(url, { ...config, signal: controller.signal });
     } catch (fetchError: any) {
-      console.error(`[API] Network error for ${method} ${url}:`, fetchError.message);
+      const isTimeout = fetchError?.name === 'AbortError';
+      console.error(
+        `[API] ${isTimeout ? 'Timeout' : 'Network error'} for ${method} ${url}:`,
+        fetchError?.message
+      );
       throw new ApiError(
-        `Cannot connect to server. Please check your connection and ensure backend is running at ${url}.`,
+        isTimeout
+          ? `Request timed out after ${Math.round(REQUEST_TIMEOUT_MS / 1000)}s. Check your connection and that the server is running at ${url}.`
+          : `Cannot connect to server. Please check your connection and ensure backend is running at ${url}.`,
         0
       );
+    } finally {
+      clearTimeout(timeoutId);
     }
 
     if (response.status === 401) {

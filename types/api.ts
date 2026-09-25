@@ -22,8 +22,9 @@ export interface Category {
 export interface Asset {
   id: number;
   name: string;
-  asset_tag: string;
-  serial: string;
+  asset_tag: string;        // auto-generated system ID (internal, hidden from UI)
+  asset_code: string | null; // manually entered visible code shown beside asset name
+  serial: string | null;
   status: 'active' | 'archived' | 'checked_out' | 'discarded';
   photo_url: string | null;
   brand: string | null;
@@ -33,6 +34,7 @@ export interface Asset {
   purchase_price: number | null;
   supplier: string | null;
   location: string | null;
+  assigned_custodian: string | null;
   description: string | null;
   archived_at: string | null;
   archived_reason: string | null;

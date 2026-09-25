@@ -10,6 +10,7 @@ import {
   ScrollView,
   Platform,
   Animated,
+  useWindowDimensions,
 } from 'react-native';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { useRouter } from 'expo-router';
@@ -34,6 +35,8 @@ const isWeb = Platform.OS === 'web';
 export default function ScanScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const cameraHeight = Math.min(Math.max((windowWidth - 32) / 1.15, 280), 400);
   const { user } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
   const [manualCode, setManualCode] = useState('');
@@ -136,7 +139,7 @@ export default function ScanScreen() {
         </LinearGradient>
 
         {/* ── Camera Card ───────────────────────────────────── */}
-        <View style={styles.cameraWrap}>
+        <View style={[styles.cameraWrap, { height: cameraHeight }]}>
           {cameraReady ? (
             <CameraView
               style={styles.camera}
@@ -391,9 +394,7 @@ const styles = StyleSheet.create({
 
   // ── Camera Card ───────────────────────────────────────────
   cameraWrap: {
-    aspectRatio: 1.15,
-    minHeight: 300,
-    maxHeight: 400,
+    height: 400,
     marginHorizontal: 16,
     marginTop: -24,
     borderRadius: 28,

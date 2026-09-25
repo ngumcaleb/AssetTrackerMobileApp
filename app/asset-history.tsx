@@ -110,7 +110,9 @@ export default function AssetHistoryScreen() {
               <Text style={styles.overviewIconText}>🏭</Text>
             </View>
             <View style={styles.overviewInfo}>
-              <Text style={styles.overviewId}>Asset ID: #{asset?.asset_tag ?? id}</Text>
+              {asset?.asset_code ? (
+                <Text style={styles.overviewId}>Code: {asset.asset_code}</Text>
+              ) : null}
               <Text style={styles.overviewName}>{asset?.name ?? 'Unknown Asset'}</Text>
               <View style={[styles.badge, { backgroundColor: statusBg }]}>
                 <Text style={[styles.badgeText, { color: statusColor }]}>{statusLabel}</Text>

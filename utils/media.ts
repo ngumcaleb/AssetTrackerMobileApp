@@ -26,6 +26,15 @@ export function resolveMediaUrl(url?: string | null): string | null {
         parsed.host = api.host;
         return parsed.toString();
       }
+
+      if (API_BASE) {
+        const api = new URL(API_BASE);
+        if (parsed.hostname === api.hostname && api.protocol === 'https:' && parsed.protocol === 'http:') {
+          parsed.protocol = 'https:';
+          return parsed.toString();
+        }
+      }
+
       return trimmed;
     } catch {
       return trimmed;
